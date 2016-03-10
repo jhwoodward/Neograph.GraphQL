@@ -1,5 +1,5 @@
 {
-  "name": "ngapi",
+  "name": "vsys.ngapi",
   "version": "0.1.0",
   "private": false,
   "main": "./api/routes.js",

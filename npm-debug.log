@@ -14,21 +14,21 @@
 7 silly cache add   rawSpec: '.',
 7 silly cache add   spec: 'K:\\Dev\\neograph\\ngApi',
 7 silly cache add   type: 'directory' }
-8 verbose addLocalDirectory K:\AppData\Roaming\npm-cache\NeographAPI\0.1.0\package.tgz not in flight; packing
+8 verbose addLocalDirectory K:\AppData\Roaming\npm-cache\ngapi\0.1.0\package.tgz not in flight; packing
 9 verbose correctMkdir K:\AppData\Roaming\npm-cache correctMkdir not in flight; initializing
-10 info lifecycle NeographAPI@0.1.0~prepublish: NeographAPI@0.1.0
-11 silly lifecycle NeographAPI@0.1.0~prepublish: no script for prepublish, continuing
-12 verbose tar pack [ 'K:\\AppData\\Roaming\\npm-cache\\NeographAPI\\0.1.0\\package.tgz',
+10 info lifecycle ngapi@0.1.0~prepublish: ngapi@0.1.0
+11 silly lifecycle ngapi@0.1.0~prepublish: no script for prepublish, continuing
+12 verbose tar pack [ 'K:\\AppData\\Roaming\\npm-cache\\ngapi\\0.1.0\\package.tgz',
 12 verbose tar pack   'K:\\Dev\\neograph\\ngApi' ]
-13 verbose tarball K:\AppData\Roaming\npm-cache\NeographAPI\0.1.0\package.tgz
+13 verbose tarball K:\AppData\Roaming\npm-cache\ngapi\0.1.0\package.tgz
 14 verbose folder K:\Dev\neograph\ngApi
-15 verbose addLocalTarball adding from inside cache K:\AppData\Roaming\npm-cache\NeographAPI\0.1.0\package.tgz
+15 verbose addLocalTarball adding from inside cache K:\AppData\Roaming\npm-cache\ngapi\0.1.0\package.tgz
 16 verbose correctMkdir K:\AppData\Roaming\npm-cache correctMkdir not in flight; initializing
-17 silly cache afterAdd NeographAPI@0.1.0
-18 verbose afterAdd K:\AppData\Roaming\npm-cache\NeographAPI\0.1.0\package\package.json not in flight; writing
+17 silly cache afterAdd ngapi@0.1.0
+18 verbose afterAdd K:\AppData\Roaming\npm-cache\ngapi\0.1.0\package\package.json not in flight; writing
 19 verbose correctMkdir K:\AppData\Roaming\npm-cache correctMkdir not in flight; initializing
-20 verbose afterAdd K:\AppData\Roaming\npm-cache\NeographAPI\0.1.0\package\package.json written
-21 silly publish { name: 'NeographAPI',
+20 verbose afterAdd K:\AppData\Roaming\npm-cache\ngapi\0.1.0\package\package.json written
+21 silly publish { name: 'ngapi',
 21 silly publish   version: '0.1.0',
 21 silly publish   private: false,
 21 silly publish   main: './api/routes.js',
@@ -48,57 +48,65 @@
 21 silly publish   devDependencies: { jshint: '^2.9.1' },
 21 silly publish   readme: '﻿# ngApi\r\n\r\n\r\n',
 21 silly publish   readmeFilename: 'README.md',
-21 silly publish   gitHead: '9605f57bdd86b9325c46bb3e0583b4f87a26a8d0',
-21 silly publish   _id: 'NeographAPI@0.1.0',
-21 silly publish   _shasum: 'c677399777e616666bd14fb0d7aa85bc6e52efef',
+21 silly publish   gitHead: '272dea03c7b6c71bf09fec9ef9e7c30d8e65271f',
+21 silly publish   _id: 'ngapi@0.1.0',
+21 silly publish   _shasum: '8b3f74ac9d48c56e50367e552fb2fb3f5d833fb2',
 21 silly publish   _from: '.' }
 22 verbose getPublishConfig undefined
-23 silly mapToRegistry name NeographAPI
+23 silly mapToRegistry name ngapi
 24 silly mapToRegistry using default registry
 25 silly mapToRegistry registry https://registry.npmjs.org/
-26 silly mapToRegistry uri https://registry.npmjs.org/NeographAPI
+26 silly mapToRegistry uri https://registry.npmjs.org/ngapi
 27 verbose publish registryBase https://registry.npmjs.org/
-28 silly publish uploading K:\AppData\Roaming\npm-cache\NeographAPI\0.1.0\package.tgz
-29 verbose request uri https://registry.npmjs.org/NeographAPI
+28 silly publish uploading K:\AppData\Roaming\npm-cache\ngapi\0.1.0\package.tgz
+29 verbose request uri https://registry.npmjs.org/ngapi
 30 verbose request sending authorization for write operation
-31 info attempt registry request try #1 at 10:12:23 AM
+31 info attempt registry request try #1 at 10:14:48 AM
 32 verbose request using bearer token for auth
-33 verbose request id b7b43ff0031ad202
-34 http request PUT https://registry.npmjs.org/NeographAPI
-35 http 400 https://registry.npmjs.org/NeographAPI
-36 verbose headers { 'content-type': 'application/json',
-36 verbose headers   'cache-control': 'max-age=300',
-36 verbose headers   'content-length': '54',
-36 verbose headers   'accept-ranges': 'bytes',
-36 verbose headers   date: 'Thu, 10 Mar 2016 10:12:30 GMT',
-36 verbose headers   via: '1.1 varnish',
-36 verbose headers   connection: 'keep-alive',
-36 verbose headers   'x-served-by': 'cache-lhr6325-LHR',
-36 verbose headers   'x-cache': 'MISS',
-36 verbose headers   'x-cache-hits': '0',
-36 verbose headers   'x-timer': 'S1457604749.444533,VS0,VE885' }
-37 verbose request invalidating K:\AppData\Roaming\npm-cache\registry.npmjs.org\NeographAPI on PUT
-38 error publish Failed PUT 400
-39 verbose stack Error: name can no longer contain capital letters : NeographAPI
-39 verbose stack     at makeError (K:\Program Files\nodejs\node_modules\npm\node_modules\npm-registry-client\lib\request.js:264:12)
-39 verbose stack     at CachingRegistryClient.<anonymous> (K:\Program Files\nodejs\node_modules\npm\node_modules\npm-registry-client\lib\request.js:252:14)
-39 verbose stack     at Request._callback (K:\Program Files\nodejs\node_modules\npm\node_modules\npm-registry-client\lib\request.js:172:14)
-39 verbose stack     at Request.self.callback (K:\Program Files\nodejs\node_modules\npm\node_modules\request\request.js:198:22)
-39 verbose stack     at emitTwo (events.js:100:13)
-39 verbose stack     at Request.emit (events.js:185:7)
-39 verbose stack     at Request.<anonymous> (K:\Program Files\nodejs\node_modules\npm\node_modules\request\request.js:1035:10)
-39 verbose stack     at emitOne (events.js:95:20)
-39 verbose stack     at Request.emit (events.js:182:7)
-39 verbose stack     at IncomingMessage.<anonymous> (K:\Program Files\nodejs\node_modules\npm\node_modules\request\request.js:962:12)
-40 verbose statusCode 400
-41 verbose pkgid NeographAPI
-42 verbose cwd K:\Dev\neograph\ngApi
-43 error Windows_NT 10.0.10586
-44 error argv "K:\\Program Files\\nodejs\\node.exe" "K:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" "publish"
-45 error node v5.7.0
-46 error npm  v3.6.0
-47 error code E400
-48 error name can no longer contain capital letters : NeographAPI
-49 error If you need help, you may report this error at:
-49 error     <https://github.com/npm/npm/issues>
-50 verbose exit [ 1, true ]
+33 verbose request id bbf8c15d4302ac99
+34 http request PUT https://registry.npmjs.org/ngapi
+35 info retry will retry, error on last attempt: Error: read ECONNRESET
+36 info attempt registry request try #2 at 10:14:58 AM
+37 verbose request using bearer token for auth
+38 http request PUT https://registry.npmjs.org/ngapi
+39 info retry will retry, error on last attempt: Error: read ECONNRESET
+40 info attempt registry request try #3 at 10:15:58 AM
+41 verbose request using bearer token for auth
+42 http request PUT https://registry.npmjs.org/ngapi
+43 http 403 https://registry.npmjs.org/ngapi
+44 verbose headers { 'content-type': 'application/json',
+44 verbose headers   'cache-control': 'max-age=300',
+44 verbose headers   'content-length': '97',
+44 verbose headers   'accept-ranges': 'bytes',
+44 verbose headers   date: 'Thu, 10 Mar 2016 10:16:05 GMT',
+44 verbose headers   via: '1.1 varnish',
+44 verbose headers   connection: 'keep-alive',
+44 verbose headers   'x-served-by': 'cache-lhr6326-LHR',
+44 verbose headers   'x-cache': 'MISS',
+44 verbose headers   'x-cache-hits': '0',
+44 verbose headers   'x-timer': 'S1457604964.991241,VS0,VE610' }
+45 verbose request invalidating K:\AppData\Roaming\npm-cache\registry.npmjs.org\ngapi on PUT
+46 error publish Failed PUT 403
+47 verbose stack Error: You do not have permission to publish 'ngapi'. Are you logged in as the correct user? : ngapi
+47 verbose stack     at makeError (K:\Program Files\nodejs\node_modules\npm\node_modules\npm-registry-client\lib\request.js:264:12)
+47 verbose stack     at CachingRegistryClient.<anonymous> (K:\Program Files\nodejs\node_modules\npm\node_modules\npm-registry-client\lib\request.js:252:14)
+47 verbose stack     at Request._callback (K:\Program Files\nodejs\node_modules\npm\node_modules\npm-registry-client\lib\request.js:172:14)
+47 verbose stack     at Request.self.callback (K:\Program Files\nodejs\node_modules\npm\node_modules\request\request.js:198:22)
+47 verbose stack     at emitTwo (events.js:100:13)
+47 verbose stack     at Request.emit (events.js:185:7)
+47 verbose stack     at Request.<anonymous> (K:\Program Files\nodejs\node_modules\npm\node_modules\request\request.js:1035:10)
+47 verbose stack     at emitOne (events.js:95:20)
+47 verbose stack     at Request.emit (events.js:182:7)
+47 verbose stack     at IncomingMessage.<anonymous> (K:\Program Files\nodejs\node_modules\npm\node_modules\request\request.js:962:12)
+48 verbose statusCode 403
+49 verbose pkgid ngapi
+50 verbose cwd K:\Dev\neograph\ngApi
+51 error Windows_NT 10.0.10586
+52 error argv "K:\\Program Files\\nodejs\\node.exe" "K:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" "publish"
+53 error node v5.7.0
+54 error npm  v3.6.0
+55 error code E403
+56 error You do not have permission to publish 'ngapi'. Are you logged in as the correct user? : ngapi
+57 error If you need help, you may report this error at:
+57 error     <https://github.com/npm/npm/issues>
+58 verbose exit [ 1, true ]
