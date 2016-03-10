@@ -1,8 +1,8 @@
 {
-  "name": "NeographAPI",
+  "name": "ngapi",
   "version": "0.1.0",
   "private": false,
-  "main": "app.js",
+  "main": "./api/routes.js",
   "description": "Api for neograph knowledge management system",
   "author": {
     "name": "J H Woodward",
