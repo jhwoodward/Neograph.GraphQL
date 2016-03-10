@@ -1,11 +1,11 @@
 {
   "name": "NeographAPI",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "main": "app.js",
-  "description": "ngApi",
+  "description": "Api for neograph knowledge management system",
   "author": {
-    "name": "Julian Woodward",
+    "name": "J H Woodward",
     "email": "jw@vsys.co.uk"
   },
   "scripts": {
