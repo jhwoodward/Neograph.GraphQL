@@ -1,7 +1,7 @@
 ﻿module.exports = function(config){
     var router = require('express').Router();
     var api = require('./api')(config);
-    var utils = require("./utils");
+    var utils = require("./utils")(config);
     
     router.route('/painters').get(api.painters);
     router.route('/testgraph').get(api.testGraph);
