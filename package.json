@@ -1,6 +1,6 @@
 {
   "name": "vsys.ngapi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "main": "./api/app.js",
   "description": "Api for neograph knowledge management system",
@@ -10,16 +10,14 @@
   },
   "scripts": {
     "lint": "jshint --exclude ./node_modules .",
-    "prestart" : "npm run lint",
+    "prestart": "npm run lint",
     "start": "node app-host.js"
   },
-  "jshintConfig":{
-      "esversion":6,
-      "laxcomma":true,
-      "node":true
-      
-  }
-  ,
+  "jshintConfig": {
+    "esversion": 6,
+    "laxcomma": true,
+    "node": true
+  },
   "dependencies": {
     "body-parser": "~1.8.1",
     "debug": "~2.0.0",
