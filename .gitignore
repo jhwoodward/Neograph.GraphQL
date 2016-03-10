@@ -1,0 +1,5 @@
+.ntvs_analysis.dat
+node_modules/
+bin/
+obj/
+.vscode/
