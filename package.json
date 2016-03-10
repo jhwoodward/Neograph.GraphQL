@@ -2,7 +2,7 @@
   "name": "vsys.ngapi",
   "version": "0.1.0",
   "private": false,
-  "main": "./api/routes.js",
+  "main": "./api/app.js",
   "description": "Api for neograph knowledge management system",
   "author": {
     "name": "J H Woodward",
@@ -11,7 +11,7 @@
   "scripts": {
     "lint": "jshint --exclude ./node_modules .",
     "prestart" : "npm run lint",
-    "start": "node app.js"
+    "start": "node app-host.js"
   },
   "jshintConfig":{
       "esversion":6,

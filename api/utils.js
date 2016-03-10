@@ -1,5 +1,7 @@
-﻿
-var cypher = require("./cypher");
+﻿module.exports = function(config)
+{
+
+var cypher = require("./cypher")(config);
 var extend = require('extend');
 
 Array.prototype.diff = function (a) {
@@ -337,5 +339,6 @@ var that = {
 };
 
 
-module.exports = that.init();
+return that.init();
 
+};

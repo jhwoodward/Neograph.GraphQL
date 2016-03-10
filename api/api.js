@@ -1,9 +1,26 @@
-﻿"use strict";
+﻿module.exports = function(config){
+    
+    "use strict";
+    
+    var extend = require('extend');
 
-var cypher = require("./cypher");
-var utils = require("./utils");
-var extend = require('extend');
-var config = require('../config');
+    config = extend (  {
+        neo4j:
+        {
+            root: "http://localhost:7474"
+        }
+        ,
+        media:{
+            root:'http://media/'
+        } 
+    }
+    , config);
+    
+    
+    var utils = require("./utils")(config);
+    var cypher = require("./cypher")(config);
+
+
 /**
  * Checks if value is empty. Deep-checks arrays and objects
  * Note: isEmpty([]) == true, isEmpty({}) == true, isEmpty([{0:false},"",0]) == true, isEmpty({0:1}) == false
@@ -1591,5 +1608,10 @@ var that = {
 };
 
 
-module.exports = that.init();
+return that.init();
+
+
+    
+    
+};
 

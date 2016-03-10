@@ -13,10 +13,10 @@ var config = require('./config');
 // Add headers
 app.use(require('./headers'));
 
-var port = process.env.PORT || config.api.port;       
+var port = process.env.PORT || config.host.port;       
 
 //configure routes
-app.use(config.api.root, require('./api/routes'));
+app.use(config.host.root, require('./api/app')(require('./api-config')));
 
 app.listen(port);
 console.log('Magic happens on port ' + port);

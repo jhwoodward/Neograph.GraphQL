@@ -1,6 +1,6 @@
-﻿var config = require("../config");
-
-  var txUrl = config.neo4j.root + "/db/data/transaction/commit";
+﻿module.exports = function(config){
+    
+var txUrl = config.neo4j.root + "/db/data/transaction/commit";
   
 function cypher(statements,transform) {
     var r = require("request-promise");
@@ -132,5 +132,10 @@ var that = {
 
 };
 
-module.exports = that;
+return that;
 
+
+    
+    
+};
+  
