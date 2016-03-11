@@ -1,5 +1,6 @@
 module.exports = function(config)
 {
+    "use strict";
 
     var extend = require('extend');
     config = extend ( require('./config.default'), config);
@@ -32,9 +33,8 @@ var that = {
             "match (n:Type) return ID(n),n",
                 "row")
                 .then(function (data) {
-            
-            //private variable
-            types = {};
+
+            let types = {};
             
             for (var i = 0; i < data.length; i++) {
                 
@@ -52,48 +52,20 @@ var that = {
                 else {
                     console.log("Warning - type without lookup! (id:" + d.row[0] + ")");
                 }
-
             }
-            //angular.forEach(data, function (d) {
-                
-            //    if (d.row[1].Lookup) {
-            //        types[d.row[1].Lookup] = {
-            //            id: d.row[0],
-            //            Type: 'Type',
-            //            Lookup: d.row[1].Lookup,
-            //            Label: d.row[1].Lookup,
-            //            Props: d.row[1].Props,
-            //            Tabs: d.row[1].Tabs,
-            //        };
-            //    }
-            //    else {
-            //        console.log("Warning - type without lookup! (id:" + d.row[0] + ")");
-            //    }
 
-            //});
-            
             list = types;
-            
             return types;
-
         });
-
-
     }
-  
-    
     ,
     isSystemInfo: function (label) {
         
         return label == "Global" || label == "Type" || label == "Label" || label == "SystemInfo";
-
     },
+    //should be in the ui
     getLabelClass: function (node, label) {
-        
-        
-        
-        
-        
+
         if (node && label === node.Type) {
             return 'label-warning';
         }
@@ -105,23 +77,8 @@ var that = {
         if (that.isType(label)) {
             return 'label-inverse pointer';
         }
-        
-        
         return 'label-info';
-
-
-
-
     }
-    
-    //,
-    //getImageSource: function (urlStub) {
-    
-    
-    
-    
-    
-    //}
     ,
     personTypes: ['Painter',
         'Illustrator',
@@ -141,22 +98,7 @@ var that = {
     pictureTypes: ['Painting', 'Illustration', 'Drawing', 'Print']
     ,
     isPerson: function (type) {
-        
-        return type == 'Painter' ||
-                type == 'Illustrator' ||
-                type == 'Philosopher' ||
-                type == 'Poet' ||
-                type == 'FilmMaker' ||
-                type == 'Sculptor' ||
-                type == 'Writer' ||
-                type == 'Patron' ||
-                type == 'Leader' ||
-                type == 'Explorer' ||
-                type == 'Composer' ||
-                type == 'Scientist' ||
-                type == 'Caricaturist' ||
-                type == 'Mathematician';
-
+        return that.personTypes.indexOf(type) > -1;
     }
 
 };

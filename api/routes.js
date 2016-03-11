@@ -1,5 +1,8 @@
 ﻿module.exports = function(config){
     
+    "use strict";
+    
+    
     var router = require('express').Router();
     var node = require('./node')(config);
     var nodeMetadata = require('./node.metadata')(config);

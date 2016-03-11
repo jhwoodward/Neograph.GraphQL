@@ -1,6 +1,7 @@
 ﻿module.exports = function(config)
 {
-
+    "use strict";
+    
     var extend = require('extend');
     config = extend ( require('./config.default'), config);
     var cypher = require("./cypher")(config);

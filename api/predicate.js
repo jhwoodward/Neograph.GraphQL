@@ -1,25 +1,21 @@
 module.exports = function(config)
 {
-
+    
+    "use strict";
+    
     var extend = require('extend');
     config = extend ( require('./config.default'), config);
     var cypher = require("./cypher")(config);
     var utils = require("./utils")(config);
     var _ = require("lodash");
-    
-
 
 var Predicate = function (lookup, direction) {
+    
     this.Lookup = lookup;
-    
     this.IsDirectional = this.Lookup != "ASSOCIATED_WITH";
-    
     this.Direction = direction;
-    
     this.Type = 'Predicate';
-    
     this.Key = function () {
-        
         if (!this.IsDirectional || !this.Direction) {
             return this.Lookup;
         }
@@ -64,7 +60,6 @@ var Predicate = function (lookup, direction) {
         if (!this.IsDirectional) {
             return;
         }
-        
         if (this.Direction === "in") {
             this.Direction = "out";
         }
@@ -77,13 +72,11 @@ var Predicate = function (lookup, direction) {
 
 };
 
-
+//cached list of predicates
 var list = {};
 
-
 var that = {
-    
-  
+
     create: function(lookup,direction){
         return new Predicate(lookup,direction);
     } 
@@ -105,7 +98,7 @@ var that = {
                    "row")
                    .then(function (data) {
             
-            var predicates = {};
+            let predicates = {};
             
             for (var i =0; i < data.length; i++) {
                 var d = data[i];
@@ -116,12 +109,7 @@ var that = {
             return predicates;
 
         });
-
-
     }
-    
-  
-   
 
 };
 

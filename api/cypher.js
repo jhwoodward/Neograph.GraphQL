@@ -1,5 +1,8 @@
 ﻿module.exports = function(config){
     
+    "use strict";
+    
+    
 var txUrl = config.neo4j.root + "/db/data/transaction/commit";
   
 function cypher(statements,transform) {
