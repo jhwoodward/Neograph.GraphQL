@@ -101,6 +101,30 @@ describe('Node', function() {
         });
     });
     
+    describe('get',function(){
+        it ('should return the full node object',function(done){
+
+              node.get(n.id).then(function(node){
+                 node.should.eql(n);//eql for object comparison
+                   done();
+                });
+        });
+    });
+    
+   describe('destroy', function () {
+        it('should be gone forever', function (done) {
+            node.destroy(deleted).then(function(){
+                node.get(deleted).then(function(node){
+                    should.not.exist(node);
+                   done();
+                });
+            });
+        });
+    });
+    
+    
+  
+    
      // runs after all tests in this block
   after(function() {
       //cleanup

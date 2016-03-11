@@ -3,13 +3,9 @@ module.exports = function(config){
     "use strict";
     
     var extend = require('extend');
-    config = extend ( require('./configDefault'), config);
-    
-    
-    var utils = require("./utils")(config);
+    config = extend ( require('./config.default'), config);
     var cypher = require("./cypher")(config);
-
-var _ = require("lodash");
+    var _ = require("lodash");
 
 var that = {
 

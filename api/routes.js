@@ -1,13 +1,18 @@
 ﻿module.exports = function(config){
+    
     var router = require('express').Router();
     var node = require('./node')(config);
+    var nodeMetadata = require('./node.metadata')(config);
+     var nodeUtils = require('./node.utils')(config);
     var edge = require('./edge')(config);
     var user = require('./user')(config);
     var multiple = require('./multiple')(config);
     var test = require('./test')(config);
     var utils = require("./utils")(config);
     var graph = require("./graph")(config);
-    
+    var search = require("./search")(config);
+    var type = require("./type")(config);
+    var predicate = require("./predicate")(config);
 
     
     router.route('/test/painters').get(function (req, res) {
@@ -64,8 +69,29 @@
     router.route('/node/match').post(function(req,res){
         var txt = req.body.txt;
         var restrict = req.body.restrict;
+        
+        var searchFn;
+        
+        if (!restrict){
+            searchFn = search.all;
+        }
+        else if (restrict === "user")
+        {
+            searchFn = function(){
+                return search.label("User",txt);
+            };
+        }
+        else if (restrict === "label")
+        {
+            searchFn = function(){
+                return search.label("Label",txt);
+            };
+        }
+        else{
+            res.status(501).json("Restrict option not implemented: " + restrict);
+        }
 
-        node.match(txt,restrict)
+        searchFn(txt)
             .then(function (data) {
                 res.status(200).json(data);
             })
@@ -73,6 +99,28 @@
                 res.status(500).json(err);
             });
     });
+    
+ 
+    
+    router.route('/search/:label/:txt').get(function(req,res){
+        search.label(req.params.label,req.params.txt).then(function (data) {
+                res.status(200).json(data);
+            })
+            .catch(function (err) {
+                res.status(500).json(err);
+            });
+    });
+    
+    //default search is anything with the Label label
+        router.route('/search/:txt').get(function(req,res){
+        search.label("Label",req.params.txt).then(function (data) {
+                res.status(200).json(data);
+            })
+            .catch(function (err) {
+                res.status(500).json(err);
+            });
+    });
+     
     
     router.route('/nodeWithRels/:id').get(function(req,res){
          node.getWithRels(req.params.id)
@@ -131,7 +179,7 @@
     });
     
     router.route('/node/saveWikipagename').post(function(req,res){
-          node.saveWikipagename(req.body)
+          node.metadata.saveWikipagename(req.body)
             .then(function (data) {
                 res.status(200).json(data);
              })
@@ -181,8 +229,9 @@
     });
     
     router.route('/node/getProps').post(function (req, res) {
-        res.status(200).json(node.getPropsFromLabels(req.body));
+        res.status(200).json(nodeUtils.getPropsFromLabels(req.body));
     });
+    
     router.route('/node/getImages').post(function (req, res) {
 
         node.getImages(req.body)
@@ -251,12 +300,12 @@
     });
 
     router.route('/predicates').get(function (req, res) {
-        utils.refreshPredicates().then(function (predicates) {
+        predicate.refreshList().then(function (predicates) {
             res.status(200).json(predicates);
         });
     });
     router.route('/types').get(function (req, res) {
-        utils.refreshTypes().then(function (types) {
+        type.refreshList().then(function (types) {
             res.status(200).json(types);
         });
     });

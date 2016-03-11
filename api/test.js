@@ -3,7 +3,7 @@
 "use strict";
     
 var extend = require('extend');  
-config = extend ( require('./configDefault'), config);
+config = extend ( require('./config.default'), config);
 var cypher = require("./cypher")(config);
 
 var graph = require("./graph")(config);
