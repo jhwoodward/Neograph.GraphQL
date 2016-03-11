@@ -15,8 +15,25 @@ app.use(require('./headers'));
 
 var port = process.env.PORT || config.host.port;       
 
+var apiconfig = require('./api-config');
+
+/*apiconfig should look like this:
+{  
+    neo4j:
+        {
+            root: "http://localhost:7474",
+            password: 'password'
+        }
+        ,
+        media:{
+            root:'http://path/to/media/'
+        } 
+    
+}
+*/
+
 //configure routes
-app.use(config.host.root, require('./api/app')(require('./api-config')));
+app.use(config.host.root, require('./api/app')(apiconfig));
 
 app.listen(port);
 console.log('Magic happens on port ' + port);

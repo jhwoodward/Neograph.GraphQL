@@ -1,59 +1,13 @@
 ﻿module.exports = function(config)
 {
 
-var cypher = require("./cypher")(config);
+
 var extend = require('extend');
+ config = extend ( require('./configDefault'), config);
+var cypher = require("./cypher")(config);
 
-Array.prototype.diff = function (a) {
-    return this.filter(function (i) { return a.indexOf(i) < 0; });
-};
+var _ = require("lodash");
 
-Array.prototype.ids = function () {
-    return this.map(function (e) { return e.id; });
-};
-
-Array.prototype.hasAny = function (a) {
-    return this.filter(function (i) { return a.indexOf(i) > -1; }).length > 0;
-};
-
-Array.prototype.unique = function () {
-    var a = [];
-    for (i = 0; i < this.length; i++) {
-        var current = this[i];
-        if (a.indexOf(current) < 0) a.push(current);
-    }
-    return a;
-};
-//var sources = {
-//    "1": { name: "Wikimedia Commons", url: "http://commons.wikimedia.org/wiki/Main_Page", directLinkStub: "http://upload.wikimedia.org/wikipedia/commons/" },
-//    "2": { name: "Web Gallery of Art", url: "http://www.wga.hu/index1.html", directLinkStub: "http://www.wga.hu/art/" },
-//    "3": { name: "Olga's Gallery", url: "http://www.abcgallery.com" },
-//    "5": { name: "Matisse Picasso Gallery", url: "http://www.picassoandmatisse.com" },
-//    "6": { name: "Renoir Gallery", url: "http://www.renoirgallery.com/" },
-//    "7": { name: "Google", url: "http://www.google.co.uk" },
-//    "8": { name: "Hirshhorn", url: "http://hirshhorn.si.edu" },
-//    "9": { name: "Artchive", url: "http://www.artchive.com" },
-//    "10": { name: "Libart", url: "http://www.lib-art.com" },
-//    "11": { name: "Marlborough Fine Art", url: "http://www.marlboroughfineart.com" },
-//    "12": { name: "Visual telling of Stories", url: "http://www.fulltable.com/vts", directLinkStub: "http://www.fulltable.com/vts/" },
-//    "13": { name: "User upload" }
-//}
-
-//  var contentRoot = 'http://julian-pc/media/';
-// var contentRoot = 'http://82.145.57.222/media/';
-
-//image properties:
-//ImageUrl - the original source URL (formerly ImagePath)
-//ImageCache - the path to the cached image (relative to /original/ or /thumbnail/)
-//ImageRef - the url of the page the image was found on
-//ImageSite - the domain (site) name the image was found on (could be derived from ImageRef)
-//ImageWidth
-//ImageHeight - the image dimensions - might be the thumb dimensions but primarily use to determin aspect ratio
-//ImageZoomLink - the link to the zoomable image if available (national gallery, artsy)
-//ImageThumb - the url or base64 encoded thumbnail url at time of capture. Only for precache usage
-//GoogleData - serialized data from google search
-
-//TateID - the tate ID of the item
 
 var Predicate = function (lookup, direction) {
     this.Lookup = lookup;
@@ -309,29 +263,99 @@ var that = {
 
     }
     ,
+    //if the node has any values in its labels array that match picture or person types
+    //the corresponding parent label is added to the array
+    //The array is uniqued before returning
     setLabelParents: function (n) {
         
-        var labels = JSON.parse(JSON.stringify(n.labels));// angular.copy();
-        
-        
-        if (labels.hasAny(that.pictureTypes)) {
-            labels.push("Picture");
+        if (n.labels && n.labels.length)
+        {
+             var labels = JSON.parse(JSON.stringify(n.labels));
+
+            if (_.intersection(labels,that.pictureTypes).length) {
+                labels.push("Picture");
+            }
+            
+            if (_.intersection(labels,that.personTypes).length) {
+                labels.push("Person");
+            }
+
+            n.labels = _.uniq(labels);
         }
-        
-        if (labels.hasAny(that.personTypes)) {
-            labels.push("Person");
-        }
-        
-        labels = labels.unique();
-        
-        n.labels = labels;
-        
-        
+ 
         return n;
 
 
 
     }
+,
+  //Alternatively i could query the actual labels and merge them into a distinct array
+    distinctLabels: function (labels) {
+      
+        var q;
+        
+        if (labels) {
+            q = "match (n:" + labels.join(':') + ") return distinct(LABELS(n))";
+        }
+        else {
+            
+            q = req.body.q;
+        
+        }
+        return cypher.executeQuery(q).then(function (data) {
+            
+            var output = [];
+            
+            for (var i = 0; i < data.length; i++) {
+                var val = data[i];
+                for (var j = 0; j < val.row[0].length; j++) {
+                    var label = val.row[0][j];
+                    if (output.indexOf(label) === -1) {
+                        output.push(label);
+                    }
+                }
+
+            }
+            
+            
+            //for (var datakey in data) {
+            //    var val = data[datakey];
+            //    for (var labelkey in val.row[0]) {
+            //        var label = val.row[0][labelkey];
+            //        if (output.indexOf(label) === -1) {
+            //            output.push(label);
+            //        }
+            //    }
+            //}
+            
+            return output;
+        });
+
+    }
+    ,
+/**
+ * Checks if value is empty. Deep-checks arrays and objects
+ * Note: isEmpty([]) == true, isEmpty({}) == true, isEmpty([{0:false},"",0]) == true, isEmpty({0:1}) == false
+ * @param value
+ * @returns {boolean}
+ */
+ isEmpty: function(value) {
+    var isEmptyObject = function (a) {
+        if (typeof a.length === 'undefined') { // it's an Object, not an Array
+            var hasNonempty = Object.keys(a).some(function nonEmpty(element) {
+                return !isEmpty(a[element]);
+            });
+            return hasNonempty ? false : isEmptyObject(Object.keys(a));
+        }
+        
+        return !a.some(function nonEmpty(element) { // check if array is really not empty as JS thinks
+            return !isEmpty(element); // at least one element should be non-empty
+        });
+    };
+    return (
+    value === false  || typeof value === 'undefined'  || value === null || (typeof value === 'object' && isEmptyObject(value))
+);
+}
 
 
 

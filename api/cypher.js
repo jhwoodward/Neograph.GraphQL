@@ -17,6 +17,7 @@ function cypher(statements,transform) {
     });
 }
 
+/*
 function cypher2(statements, cb) {
     var r = require("request");
     r.post({
@@ -38,6 +39,7 @@ function cypher2(statements, cb) {
     });
 
 }
+*/
 
 
 function NeoError(err, q) {
@@ -95,7 +97,7 @@ var that = {
     },
     executeStatements: function (statements) {
         
-        return cypher(statements, function (d) {
+        return cypher(statements).then(function (d) {
             if (d.errors.length) {
                 throw (new NeoError(d.errors[0], statements));
             }
@@ -110,7 +112,7 @@ var that = {
         
         var statements = [that.buildStatement(q, type, params)];
         
-        return cypher(statements, function (d) {
+        return cypher(statements).then(function (d) {
             if (d.errors.length) {
                 throw (new NeoError(d.errors[0], statements));
             }
@@ -122,12 +124,13 @@ var that = {
             }
         });
     }
+    /*
     , executeQuery2: function (q, type, params,cb) { //type = graph or row
         
         var statements = [that.buildStatement(q, type, params)];
         
         return cypher2(statements,cb);
-    }
+    }*/
 
 
 };

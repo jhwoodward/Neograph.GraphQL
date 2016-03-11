@@ -1,7 +1,7 @@
 module.exports={
     host:{
         port:1337,
-        root: "/api",
+        root: "/",
         cors:{
             allow:"http://localhost:50008"
         }

@@ -23,9 +23,13 @@
     "debug": "~2.0.0",
     "express": "~4.9.0",
     "extend": "^3.0.0",
+    "lodash": "^4.6.1",
     "request-promise": "^0.4.3"
   },
   "devDependencies": {
-    "jshint": "^2.9.1"
+    "expect": "^1.15.1",
+    "jshint": "^2.9.1",
+    "mocha": "^2.4.5",
+    "should": "^8.2.2"
   }
 }
