@@ -7,6 +7,7 @@
     var type = require("./type")(config);
     var predicate = require("./predicate")(config);
     var cypher = require("./cypher")(config);
+    var changeCase = require("change-case");
 
     var _=require("lodash");
 
@@ -160,6 +161,18 @@ addPropsAndTrim : function (node) {
 //--remove temp property as this data should not be persisted
 propsForSave : function (n) {
     
+    var props = {};
+    
+    for (var key in n)
+    {
+        if (n[key] !== null && n[key] !== undefined && n[key] !== "" &&
+         key !== "labels" && key !== "id" && key !== "temp")
+         {
+             props[changeCase.pascalCase(key)] = n[key];
+         }
+    }
+    /*
+    
     var props = JSON.parse(JSON.stringify(n)); //angular.copy(n);
     
     //remove any empty properties
@@ -171,6 +184,7 @@ propsForSave : function (n) {
     delete props.labels;
     delete props.id;
     delete props.temp;
+    */
     
     return props;
 
@@ -267,8 +281,8 @@ propsForSave : function (n) {
         
         for (i = 0; i < outRels.length; i++) {
             
-            let p = predicate.create(outRels[i].row[4], "out");
-            let k = p.Key();
+            let p = predicate.get(outRels[i].row[4]).setDirection("out");
+            let key = p.toString();
             let item = {
                 id: outRels[i].row[0],
                 Lookup: outRels[i].row[1],
@@ -276,14 +290,14 @@ propsForSave : function (n) {
                 Label: outRels[i].row[5]
             };
             
-            if (!n.temp.relProps[k]) {
-                n.temp.relProps[k] = {
-                    predicate: predicate, 
+            if (!n.temp.relProps[key]) {
+                n.temp.relProps[key] = {
+                    predicate: p, 
                     items: [item]
                 };
             }
             else {
-                n.temp.relProps[k].items.push(item);
+                n.temp.relProps[key].items.push(item);
             }
         
         }
@@ -292,8 +306,8 @@ propsForSave : function (n) {
         //in
         
         for (i = 0; i < inRels.length; i++) {
-            let p = predicate.create(inRels[i].row[4], "in");
-            let k = p.Key();
+            let p = predicate.get(inRels[i].row[4]).setDirection("in");
+            let key = p.toString();
             let item = {
                 id: inRels[i].row[0],
                 Lookup: inRels[i].row[1],
@@ -301,14 +315,14 @@ propsForSave : function (n) {
                 Label: inRels[i].row[5]
             };
             
-            if (!n.temp.relProps[k]) {
-                n.temp.relProps[k] = {
-                    predicate: predicate, 
+            if (!n.temp.relProps[key]) {
+                n.temp.relProps[key] = {
+                    predicate: p, 
                     items: [item]
                 };
             }
             else {
-                n.temp.relProps[k].items.push(item);
+                n.temp.relProps[key].items.push(item);
             }
 
         }

@@ -9,92 +9,111 @@ module.exports = function(config)
     var utils = require("./utils")(config);
     var _ = require("lodash");
 
-var Predicate = function (lookup, direction) {
-    
-    this.Lookup = lookup;
-    this.IsDirectional = this.Lookup != "ASSOCIATED_WITH";
-    this.Direction = direction;
-    this.Type = 'Predicate';
-    this.Key = function () {
-        if (!this.IsDirectional || !this.Direction) {
-            return this.Lookup;
+    function Predicate(data){
+            _.extend(this,data);
         }
-        else if (this.Direction == "out") {
-            return this.Lookup + " ->";
+        
+    Predicate.prototype.setDirection = function(direction){
+        this.direction = direction;
+        
+        if (!this.isDirectional || !this.direction) {
+            this.key = this.lookup;
+        }
+        else if (this.direction === "out") {
+            this.key = this.lookup + " ->";
         }
         else {
-            return this.Lookup + " <-";
+            this.key = this.lookup + " <-";
         }
+        return this;
     };
     
-    this.ToString = function () {
+    Predicate.prototype.toString = function(){
         
-        if (!this.IsDirectional || !this.Direction || this.Direction == "out") {
-            return this.Lookup.replace(/_/g, ' ').toLowerCase();
+        if (!this.isDirectional || !this.direction || this.direction == "out") {
+            return this.lookup.replace(/_/g, ' ').toLowerCase();
         }
         else {
-            
-            if (this.Lookup == "CREATED")
-                return "created by";
-            else if (this.Lookup == "INFLUENCES")
-                return "influenced by";
-            else if (this.Lookup == "INSPIRES")
-                return "inspired by";
-            else if (this.Lookup == "ANTICIPATES")
-                return "anticipated by";
-            else if (this.Lookup == "DEVELOPS")
-                return "developed by";
-            else if (this.Lookup == "DEPICTS")
-                return "depicted by";
-            else if (this.Lookup == "TYPE_OF")
-                return "type(s)";
-            else
-                return "(" + this.Lookup.replace(/_/g, ' ').toLowerCase() + ")";
+            if (this.reverse){
+                return this.reverse.replace(/_/g, ' ').toLowerCase();
+            }
+            else{
 
+                if (this.lookup == "CREATED" || this.lookup==="CREATES")
+                    return "created by";
+                else if (this.lookup == "INFLUENCES")
+                    return "influenced by";
+                else if (this.lookup == "INSPIRES")
+                    return "inspired by";
+                else if (this.lookup == "ANTICIPATES")
+                    return "anticipated by";
+                else if (this.lookup == "DEVELOPS")
+                    return "developed by";
+                else if (this.lookup == "DEPICTS")
+                    return "depicted by";
+                else if (this.lookup == "TYPE_OF")
+                    return "type(s)";
+                else
+                    return "(" + this.lookup.replace(/_/g, ' ').toLowerCase() + ")";
+            }
         }
-
+        
     };
     
-    this.Reverse = function () {
-        
-        if (!this.IsDirectional) {
+    Predicate.prototype.flip = function () {
+    
+        if (!this.isDirectional) {
             return;
         }
-        if (this.Direction === "in") {
-            this.Direction = "out";
+        if (this.direction === "in") {
+            this.setDirection("out");
         }
         else {
-            this.Direction = "in";
+            this.setDirection("in");
         }
+        return this;
 
     };
 
-
-};
 
 //cached list of predicates
 var list = {};
 
 var that = {
+    init:function(){
+        that.refreshList();
+        return that;
+    }
+    ,
+    get: function(lookup){
 
-    create: function(lookup,direction){
-        return new Predicate(lookup,direction);
+        var p = list[lookup];
+        
+        if (!p)
+        {
+             console.warn('Warning - predicate ' + lookup + ' does not exist in DB');
+             
+             p = {
+                isDirectional:true,
+                lookup:lookup,
+                reverse: "< " + lookup 
+                };
+            
+        }
+
+        return new Predicate(p);
     } 
+
     ,
      //object containing all predicates keyed on Lookup
     getList:function(){
-        if (utils.isEmpty(list)){
-            return that.refreshList();
-        }
-        else{
-            return list;
-        }
+       return list;
     }
     ,
     refreshList: function () {//consider creating lookup nodes for relationship types so that i can store properties for them
         
         return cypher.executeQuery(
-            "match (n:Predicate) return n",
+            "match (n:Predicate) return ID(n),n",
                    "row")
                    .then(function (data) {
             
@@ -102,7 +121,21 @@ var that = {
             
             for (var i =0; i < data.length; i++) {
                 var d = data[i];
-                predicates[d.row[0].Lookup] = new Predicate(d.row[0].Lookup);
+                
+                 if (d.row[1].Lookup) {
+                    predicates[d.row[1].Lookup] = {
+                        id: d.row[0],
+                        lookup: d.row[1].Lookup,
+                        opposition: d.row[1].Opposition || false,
+                        influence:d.row[1].Influence || false,
+                        isDirectional:d.row[1].IsDirectional || d.row[1].Lookup != "ASSOCIATED_WITH",
+                        reverse:d.row[1].Reverse 
+                    };
+                }
+                else {
+                    console.log("Warning - predicate without lookup! (id:" + d.row[0] + ")");
+                }
+
             }
 
             list = predicates;
@@ -114,6 +147,6 @@ var that = {
 };
 
 
-return that;
+return that.init();
 
 };

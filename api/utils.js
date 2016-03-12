@@ -5,9 +5,25 @@
     var extend = require('extend');
     config = extend ( require('./config.default'), config);
     var cypher = require("./cypher")(config);
-  
+    var changeCase = require("change-case");
 
 var that = {
+    camelCase : function(props){
+        var out = {};
+        for (var key in props){
+            out[changeCase.camelCase(key)] = props[key];
+        }
+        return out;          
+    }
+    ,
+    pascalCase : function(props){
+        var out = {};
+        for (var key in props){
+            out[changeCase.pascalCase(key)] = props[key];
+        }
+        return out;          
+    }
+    ,
     //Alternatively i could query the actual labels and merge them into a distinct array
     distinctLabels: function (labels) {
       

@@ -5,16 +5,21 @@
     var extend = require('extend');
     config = extend ( require('./config.default'), config);
     var nodeUtils = require("./node.utils")(config);
+    var utils = require("./utils")(config);
     var type = require("./type");
     var cypher = require("./cypher")(config);
     var graph = require("./graph")(config);
+    var changeCase = require("change-case");
     var _ = require("lodash");
+
+
 
 var getNode = function (match, where) {
     
     return cypher.executeQuery("match (" + match + ") where " + where + " return ID(n),n,LABELS(n) ", "row").then(function (data) {
         if (data.length) {
-            var n = data[0].row[1];
+
+            var n = utils.camelCase(data[0].row[1]);
             n.id = data[0].row[0];
             n.labels = data[0].row[2].sort();
             return nodeUtils.addProps(n);
@@ -49,19 +54,7 @@ var getImages = function (n) {
 
 var that = {
  
-    getImages : function (n) {
-
-        //nb these properties are in the temp object when sent out
-        if (n.temp === undefined || (n.temp.isPicture === undefined || n.temp.isGroup === undefined)) {
-            
-            return that.get(n.id).then(function (nLoaded) {
-                return getImages(nLoaded);
-            });
-        }
-        else {
-            return getImages(n);
-        }
-    }
+   
   
 
     //,
@@ -88,7 +81,7 @@ var that = {
     //    return neoClient.graph.get({ q: q });//graph.get(q);
     
     //}
-    ,
+    
     //get node 
     //by (internal)ID
     get: function (id) {
@@ -101,14 +94,7 @@ var that = {
         
         return getNode("n", " ID(n)=" + id);
     }
-    ,
-    //get all relationships with other :Global nodes
-    //by (internal)ID
-    getRelationships: function (id) {
-
-        var q = "match (n)-[r]-(m:Global) where ID(n)=" + id + " return r";
-        return graph.get(q);
-    }
+    
     ,
     //get node and add 'virtual' properties
     //by (internal ID)
@@ -194,7 +180,7 @@ var that = {
         return cypher.executeQuery(q, "row", { "props": props })
             .then(function (data) {
 
-                let saved = data[0].row[1];
+                let saved = utils.camelCase(data[0].row[1]);
                 saved.id = data[0].row[0];
                 saved.labels = data[0].row[2];
 
@@ -311,7 +297,7 @@ var that = {
                     .then(function (results) {
                         
                         var nodeData = results[statements.length - 1].data[0].row;
-                        var saved = nodeData[1];
+                        var saved = utils.camelCase(nodeData[1]);
                         saved.id = nodeData[0];
                         saved.labels = nodeData[2];
                         
@@ -449,11 +435,34 @@ var that = {
         return cypher.executeStatements(statements).then(function (results) {
             
             var nodeData = results[0].data[0].row;
-            var saved = nodeData[1];
+            var saved = utils.camelCase(nodeData[1]);
             saved.id = nodeData[0];
             saved.labels = nodeData[2].sort();
             return nodeUtils.addProps(saved);
         });
+    }
+    ,
+    //get all relationships with other :Global nodes
+    //by (internal)ID
+    //should this be in graph module ??
+    getRelationships: function (id) {
+
+        var q = "match (n)-[r]-(m:Global) where ID(n)=" + id + " return r";
+        return graph.get(q);
+    }
+    ,
+     getImages : function (n) {
+
+        //nb these properties are in the temp object when sent out
+        if (n.temp === undefined || (n.temp.isPicture === undefined || n.temp.isGroup === undefined)) {
+            
+            return that.get(n.id).then(function (nLoaded) {
+                return getImages(nLoaded);
+            });
+        }
+        else {
+            return getImages(n);
+        }
     }
 ,
     getImageRelationships: function (edge) { //loks up id/label first then call get by label
@@ -498,7 +507,7 @@ var that = {
             var out = data.map(function (d) {
                 return {
                     id: d.row[0],
-                    Lookup: d.row[1]
+                    lookup: d.row[1]
                 };
 
             })[0];
@@ -518,7 +527,7 @@ var that = {
         return cypher.executeQuery(options.q, "row")
             .then(function (data) {
                 var out = data.map(function (item) {
-                    var n = data[0].row[1];
+                    var n = utils.camelCase(data[0].row[1]);
                     n.id = data[0].row[0];
                     n.labels = data[0].row[2];
                     return nodeUtils.addProps(n);
