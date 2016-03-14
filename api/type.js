@@ -8,23 +8,14 @@ module.exports = function(config)
     var utils = require("./utils")(config);
     var _ = require("lodash");
 
-//cached list of types
-var list = {};
+
 
 var that = {
-
     //object containing all types keyed on Lookup
-    getList:function(){
-        if (utils.isEmpty(list)){
-            return that.refreshList();
-        }
-        else{
-            return list;
-        }
-    }
+    list: {}
     ,
     isType: function (label) {
-        return that.getList()[label] !== undefined;
+        return that.list[label] !== undefined;
     }
     ,
     refreshList: function () {
@@ -54,7 +45,7 @@ var that = {
                 }
             }
 
-            list = types;
+            that.list = types;
             return types;
         });
     }
@@ -103,6 +94,10 @@ var that = {
 
 };
 
-return that;
+return (function(){
+     that.refreshList();
+     return that;
+})();
+
 
 };

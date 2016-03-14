@@ -8,6 +8,38 @@
     var changeCase = require("change-case");
 
 var that = {
+    getMatch:function(id)
+    {
+        var parsed = that.  parseIdOrLabel(id);
+        var q;
+        
+        if (parsed.id){
+            q = "match (n)  where ID(n) = " + parsed.id;
+        }
+        else if (parsed.label){
+            q = "match (n:Label)  where n.Label = '" + parsed.label + "'";
+        }
+        return q;
+    }
+    ,
+    parseIdOrLabel : function(id){
+        if (isNaN(id)){
+                //handle possibility of node object being passed in
+                //instead of just the id
+                if (id.id){
+                    return {id:id.id};
+                }
+                else if (typeof id === "string")
+            {
+                return {label:changeCase.pascalCase(id)};
+            }
+                
+            }
+            else{
+                return {id:id};
+            }
+    }
+    ,
     camelCase : function(props){
         var out = {};
         for (var key in props){

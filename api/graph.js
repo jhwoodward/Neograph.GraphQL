@@ -6,7 +6,7 @@ module.exports = function(config){
     config = extend (require('./config.default'), config);
     var nodeUtils = require("./node.utils")(config);
     var cypher = require("./cypher")(config);
-
+    var utils = require("./utils")(config);
 
 var that = {
        //returns graph data object for given query(q), with properties nodes, edges containing neo node/edge data by property=id
@@ -20,6 +20,14 @@ var that = {
             return that.build(data, returnArray);
         });
 
+    }
+    ,
+    //get all relationships with other :Global nodes
+    //by (internal)ID
+    getRelationships: function (id) {
+
+        var q = "match (n)-[r]-(m:Global) where ID(n)=" + id + " return r";
+        return that.get(q);
     }
     ,
     build : function (data, returnArray) {
@@ -41,10 +49,10 @@ var that = {
         
         for (var nodex = 0; nodex < val.graph.nodes.length; nodex++) {
             var node = val.graph.nodes[nodex];
-            var n = node.properties;
+            var n = utils.camelCase(node.properties);
             n.labels = node.labels;
             n.id = node.id;
-            n = nodeUtils.addPropsAndTrim(n);
+            nodeUtils.configureImage(n.image);
             nodes[node.id] = n;
             nodeArray.push(n);
         }

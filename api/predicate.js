@@ -30,7 +30,7 @@ module.exports = function(config)
     
     Predicate.prototype.toString = function(){
         
-        if (!this.isDirectional || !this.direction || this.direction == "out") {
+        if (!this.isDirectional || !this.direction || this.direction === "out") {
             return this.lookup.replace(/_/g, ' ').toLowerCase();
         }
         else {
@@ -94,9 +94,11 @@ var that = {
              console.warn('Warning - predicate ' + lookup + ' does not exist in DB');
              
              p = {
-                isDirectional:true,
-                lookup:lookup,
-                reverse: "< " + lookup 
+                
+                lookup: lookup,
+                //  force: //Attract or Repel
+                //  symmetrical: false,
+                reverse: "(" + lookup + ")"
                 };
             
         }
@@ -106,9 +108,7 @@ var that = {
 
     ,
      //object containing all predicates keyed on Lookup
-    getList:function(){
-       return list;
-    }
+    list: list
     ,
     refreshList: function () {//consider creating lookup nodes for relationship types so that i can store properties for them
         
@@ -126,9 +126,8 @@ var that = {
                     predicates[d.row[1].Lookup] = {
                         id: d.row[0],
                         lookup: d.row[1].Lookup,
-                        opposition: d.row[1].Opposition || false,
-                        influence:d.row[1].Influence || false,
-                        isDirectional:d.row[1].IsDirectional || d.row[1].Lookup != "ASSOCIATED_WITH",
+                        force: d.row[1].Force,//Attract or Repel
+                        symmetrical:d.row[1].Symmetrical || false,
                         reverse:d.row[1].Reverse 
                     };
                 }
