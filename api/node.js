@@ -505,6 +505,7 @@ var that = {
             return that.addSchema(saved);
         });
     }
+    /*
     ,
  
      getImages : function (n) {
@@ -520,11 +521,12 @@ var that = {
             return getImages(n);
         }
     }
+    
 ,
     getImageRelationships: function (edge) { //loks up id/label first then call get by label
 
         //TODO: NEEDS UPDATING SINCE CHANGE FROM IMAGEPATH TO IMAGEURL
-        var q = "match (n) - [r] - (c1) - [r2] - (c2) - [r3] - (m) where (c1:Painting or c1:Drawing) and (c2:Painting or c2:Drawing)  and ID(n) = " + edge.startNode + " and ID(m) = " + edge.endLoopNode + "  return c1,labels(c1),c2,labels(c2) limit 50";//type(r)
+        var q = "match (n) - [r] - (c1) - [r2] - (c2) - [r3] - (m) where (c1:Painting or c1:Drawing) and (c2:Painting or c2:Drawing)  and ID(n) = " + edge.startNode + " and ID(m) = " + edge.endNode + "  return c1,labels(c1),c2,labels(c2) limit 50";//type(r)
         
         return cypher.executeQuery(q).then(function (data) {
             
@@ -591,6 +593,7 @@ var that = {
                 return out;
             });
     }
+    */
 };
 
 

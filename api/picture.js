@@ -85,17 +85,18 @@ var that = {
     }
     ,
     //can optionally pass an alternative predicate such as 'of'
-    by: function (id,predicate) {
+    //same as /relationship/visual/id if not predicate passed in
+    list: function (id,predicate) {
 
         predicate = predicate || "BY";
         predicate = predicate.toUpperCase();
         
         if (predicate==="OF")
     {
-        predicate +="|DEPICTS";
+        predicate +="|:DEPICTS";
     }
 
-        var q= utils.getMatch(id) + " with n match (n) - [r] - (p:Picture) - [:IMAGE] - (i:Image:Main) where type(r)='" + predicate + "'  return n,ID(n),LABELS(n), p,ID(p),LABELS(p),i,ID(i) order by p.Status DESC limit 50";
+        var q= utils.getMatch(id) + " with n match (n) <- [:" + predicate + "] - (p:Picture) - [:IMAGE] -> (i:Image:Main)  return n,ID(n),LABELS(n), p,ID(p),LABELS(p),i,ID(i) order by p.Status DESC limit 50";
         
           return cypher.executeQuery(q, "row")
             .then(function (data) {
@@ -106,12 +107,7 @@ var that = {
                     
                     //trim
                     delete n.text;
-                    
-                    
-                //    n.labels = data[0].row[2];
-                 //   if (n.labels) n.labels.sort();
-                  //  that.addSchema(n);
-                       
+                     
                     n.pictures= [];
                        
                     for (let i=0;i < data.length;i++)

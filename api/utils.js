@@ -8,16 +8,18 @@
     var changeCase = require("change-case");
 
 var that = {
-    getMatch:function(id)
+    getMatch:function(id,alias)
     {
-        var parsed = that.  parseIdOrLabel(id);
+        alias = alias || "n";
+        
+        var parsed = that.parseIdOrLabel(id);
         var q;
         
         if (parsed.id){
-            q = "match (n)  where ID(n) = " + parsed.id;
+            q = "match (" + alias + ")  where ID(" + alias + ") = " + parsed.id;
         }
         else if (parsed.label){
-            q = "match (n:Label)  where n.Label = '" + parsed.label + "'";
+            q = "match (" + alias + ":Label)  where " + alias + ".Label = '" + parsed.label + "'";
         }
         return q;
     }
