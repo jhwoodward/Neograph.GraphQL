@@ -13,40 +13,9 @@
     var changeCase = require("change-case");
     var _ = require("lodash");
 
-
-
-
-
-var getImages = function (n) {
+var getPicture = function(id){
     
-    var statements = [];
-    
-    //update these queries for - [:IMAGE] - (i:Image)
-    
-    //pictures  / images
-    if (n.temp.isPicture) { //if picture return images (these are other - usually less good - images of the same picture)
-          }
-    else if (n.temp.isGroup) {//todo:also return images linked /tagged directly
-            }
-    else {
-    }
-    
-    return cypher.executeStatements(statements)
-        .then(function (results) {
-            return graph.build(results[0].data, true).nodes;
-        });
-
-};
-
-
-
-
-var that = {
-    //same as get node except that all images are returned instead of just the main one
-    //and picture relationships are added
-    get:function(id){
-
-        var q= utils.getMatch(id) + " with n optional match (n) - [:IMAGE] - (i:Image)  return n,ID(n),LABELS(n),i,ID(i),LABELS(i) ";
+         var q= utils.getMatch(id,"n",":Picture") + " with n optional match (n) - [:IMAGE] -> (i:Image)  return n,ID(n),LABELS(n),i,ID(i),LABELS(i) ";
         
         return cypher.executeQuery(q, "row")
             .then(function (data) {
@@ -69,72 +38,100 @@ var that = {
                             n.images.push(image);
                         }
                     }
-                
-                    return relationship.visual(n).then(function(r){
-                        n.pictures=r;
-                        return n;
-                    });
-
-                }
-                else {
-                    return null;
-                }
-            });
-    
-    
-    }
-    ,
-    //can optionally pass an alternative predicate such as 'of'
-    //same as /relationship/visual/id if not predicate passed in
-    list: function (id,predicate) {
-
-        predicate = predicate || "BY";
-        predicate = predicate.toUpperCase();
-        
-        if (predicate==="OF")
-    {
-        predicate +="|:DEPICTS";
-    }
-
-        var q= utils.getMatch(id) + " with n match (n) <- [:" + predicate + "] - (p:Picture) - [:IMAGE] -> (i:Image:Main)  return n,ID(n),LABELS(n), p,ID(p),LABELS(p),i,ID(i) order by p.Status DESC limit 50";
-        
-          return cypher.executeQuery(q, "row")
-            .then(function (data) {
-                if (data.length) {
-
-                    var n = utils.camelCase(data[0].row[0]);
-                    n.id = data[0].row[1];
                     
-                    //trim
-                    delete n.text;
-                     
-                    n.pictures= [];
-                       
-                    for (let i=0;i < data.length;i++)
-                    {
-                         if (data[i].row[3]){
-                            var p = utils.camelCase(data[i].row[3]);
-                            p.id = data[i].row[4];
-                            p.labels = data[i].row[5];
-                            p.image = utils.camelCase(data[i].row[6]);
-                            p.image.id = data[i].row[7];
-                            nodeUtils.configureImage(p.image);
-                            
-                            n.pictures.push(p);
-                        }
-                    }
-
                     return n;
                 }
                 else {
                     return null;
                 }
             });
+    
+}
+
+var getList = function(q,pageNum,pageSize,sort,sortOrder) {
+
+    pageSize = parseInt(pageSize) || 50;
+    pageNum = parseInt(pageNum) || 1;
+    var startIndex = (pageNum-1) * pageSize;
+    var endIndex = startIndex + pageSize;
+    //created is lowercase in db at the moment
+    sort = sort === "created" ? sort : (changeCase.pascalCase(sort) || "Status");
+    sortOrder = sortOrder || "DESC";
+    
+    q+= "  return p,ID(p),LABELS(p),i,ID(i) order by p." + sort + " " + sortOrder;
+    
+    return cypher.executeQuery(q)
+    .then(function (data) {
         
-      
-      
- 
+        data = data.slice(startIndex,endIndex);
+
+        var out = [];
+        
+        for (let i=0;i < data.length;i++)
+        {
+            
+            var p = utils.camelCase(data[i].row[0]);
+            p.id = data[i].row[1];
+            p.labels = data[i].row[2];
+            p.image = utils.camelCase(data[i].row[3]);
+            p.image.id = data[i].row[4];
+            nodeUtils.configureImage(p.image);
+            
+            out.push(p);
+            
+        }
+
+        return out;
+                
+    });
+}
+    
+var that = {
+    //Same as get node except that all images are returned instead of just the main one
+    get:function(id){
+        return getPicture(id);
     }
+    ,
+    //Picture relationships added
+    getWithRels:function(id){
+        return getPicture(id).then(function(n){
+            
+            return relationship.list.conceptual(n).then(function(r){
+                  n.relationships=r;
+                return relationship.list.visual(n).then(function(r){
+                    n.relationships = _.merge(n.relationships,r);
+                    return n;
+                });
+            });
+        })
+    }
+    ,
+    //can optionally pass an alternative predicate such as 'of'
+    //same as /relationship/visual/id if not predicate passed in
+    list:
+    {
+        predicate:  function (id,predicate,pageNum,pageSize,sort,sortOrder) {
+
+            predicate = predicate || "BY";
+            predicate = predicate.toUpperCase();
+            if (predicate==="OF")
+            {
+                predicate +="|:DEPICTS";
+            }
+
+            var q= utils.getMatch(id) + " with n match (n) <- [:" + predicate + "] - (p:Picture) - [:IMAGE] -> (i:Image:Main)";
+            return getList(q,pageNum,pageSize,sort,sortOrder);
+        }
+        ,
+       //returns an array of pictures that have this label
+        labelled: function (label,pageNum,pageSize,sort,sortOrder) {
+            
+            var q = "match (p:Picture:" + changeCase.pascalCase(label) + ") - [:IMAGE] -> (i:Image:Main)";
+            return getList(q,pageNum,pageSize,sort,sortOrder);
+            
+        }
+    }
+   
     
    
 };

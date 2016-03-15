@@ -30,7 +30,7 @@ var getNode = function (match, where) {
                 n.image = utils.camelCase(data[0].row[3]);
             }
             nodeUtils.configureImage(n.image);
-            that.addSchema(n);
+            addSchema(n);
 
             return n;
         }
@@ -47,38 +47,14 @@ var getNodeById= function (id) {
 var getNodeByLabel= function (label) {
     return getNode("n:Label", "n.Label = '" + label + "'");
 };
-/*
-var getImages = function (n) {
-    
-    var statements = [];
-    
-    //update these queries for - [:IMAGE] - (i:Image)
-    
-    //pictures  / images
-    if (n.temp.isPicture) { //if picture return images (these are other - usually less good - images of the same picture)
-        statements.push(cypher.buildStatement("match (n) - [r] - (m:Image)  where ID(n) = " + n.id + "  return ID(m), m,type(r) order by m.Status DESC limit 50 ", "graph"));
-    }
-    else if (n.temp.isGroup) {//todo:also return images linked /tagged directly
-        statements.push(cypher.buildStatement("MATCH (p:Label) - [:ASSOCIATED_WITH|:PART_OF|:FOUNDS|:LEADS|:MEMBER_OF|:REPRESENTS] - (g:Group), (p) -- (i:Picture) where ID(g) = " + n.id + " return p.Name,collect(i)[0..5],count(*) as count order by p.Name", "graph"));
-    }
-    else {
-        statements.push(cypher.buildStatement("match (n) - [r] - (m:Picture)  where ID(n) = " + n.id + "  return ID(m), m,type(r) order by m.Status DESC limit 50 ", "graph"));
-    }
-    
-    return cypher.executeStatements(statements)
-        .then(function (results) {
-            return graph.build(results[0].data, true).nodes;
-        });
 
-};
-*/
 var addRelationships = function (n) {
     if (n){
-        return relationship.conceptual(n)
+        return relationship.list.conceptual(n)
         .then(function(r){
             n.relationships=r;
-            //didn't ask for this show shouldn't strictly do it
-            return that.getLabelled(n.label,50).then(function(labelled){
+            //didn't ask for this so shouldn't strictly do it
+            return that.list.labelled(n.label,50).then(function(labelled){
                 n.labelled= labelled;
                 return n;
             });
@@ -89,37 +65,32 @@ var addRelationships = function (n) {
     }
 };
 
+//Returns an object containing properties defined by types in labels
+//Requires n.labels
+var getSchema = function (n) {
+    var schema = {};
+        for (let i = 0; i < n.labels.length; i++) {
+            let label = n.labels[i];
+            if (!type.list[label]) continue;
+            var t = type.list[label];//retrieve the type from the label text
+            if (t.Props) {
+                var arrProps = t.Props.split(',');
+                for (let j = 0; j < arrProps.length; j++) {
+                    var prop = changeCase.camelCase(arrProps[j]);
+                    schema[prop] = "";
+                }
+            }
+        }
+        return schema;
+    };
 
+
+var addSchema = function(n){
+        return _.extend(getSchema(n),n);
+    };
 
 var that = {
-
-    //,
-    ////returns all relationships between supplied nodes, which can be vis.Dataset or graph data object
-    //getAllRelationships: function (nodes) {
-    //    var nodeIds = "";
-    
-    //    if (nodes.getIds) //if vis.DataSet
-    //    {
-    //        nodeIds = nodes.getIds({ returnType: 'Array' }).join(",");
-    //    }
-    //    else { //otherwise data object
-    
-    //        for (var key in nodes) {
-    //            if (nodeIds.length) {
-    //                nodeIds += ",";
-    //            }
-    //            nodeIds += key;
-    //        }
-    //    }
-    
-    //    var q = "MATCH a -[r]- b WHERE id(a) IN[" + nodeIds + "] and id(b) IN[" + nodeIds + "] and not (a-[:TYPE_OF]-b) return r";
-    
-    //    return neoClient.graph.get({ q: q });//graph.get(q);
-    
-    //}
-    
-    //get node 
-    //by (internal)ID
+    //get node by (internal)ID or label
     get: function (id) {
         var parsed = utils.parseIdOrLabel(id);
         if (parsed.id){
@@ -132,10 +103,8 @@ var that = {
     }
     
     ,
-    //get node and add 'virtual' properties
-    //by (internal ID)
-    //- properties as defined by label (that may be empty)
-    //- relationships as properties (relationships), 
+    //Get node by (internal ID) or label
+    //Add relationships
     getWithRels: function (id) {
         
         var parsed = utils.parseIdOrLabel(id);
@@ -241,64 +210,24 @@ var that = {
                 if (statements.length) {
                     return cypher.executeStatements(statements).then(function (results) {
                         //add properties to the node
-                        let out = that.addSchema(saved);
+                        let out = addSchema(saved);
                         return nodeUtils.addRelationships(out);
                     });
                 }
                 else {
-                    return that.addSchema(saved);
+                    return addSchema(saved);
                 }
             });
     }
     ,
-    addSchema(n){
-        
-        return _.extend(that.getSchema(n),n);
-        
+    getSchema:function(id){
+        return that.get(id)
+        .then(
+            function(n){return getSchema(n);
+            });
     }
+   
     ,
-      //requires n.labels
-    //which props to add is stored against types 
-    getSchema : function (n) {
-        var schema = {};
-            for (let i = 0; i < n.labels.length; i++) {
-                let label = n.labels[i];
-                if (!type.list[label]) continue;
-                var t = type.list[label];//retrieve the type from the label text
-                if (t.Props) {
-                    var arrProps = t.Props.split(',');
-                    for (let j = 0; j < arrProps.length; j++) {
-                        var prop = changeCase.camelCase(arrProps[j]);
-                        schema[prop] = "";
-                    }
-                }
-            }
-            return schema;
-        }
-    ,
-//returns an array of the labels (not pictures) that have this label
- getLabelled: function (label,limit) {
-    
-    limit = limit || 50;
-    var statements = [];
-    statements.push(cypher.buildStatement("match (n:Label:" + label + ") return ID(n),n.Lookup,n.Type,n.Label limit " + limit, "row"));
-    return cypher.executeStatements(statements).then(function (results) {
-        var labelled = [];
-        var out = results[0].data;
-        for (var i = 0; i < out.length; i++) {
-            var item = {
-                id: out[i].row[0],
-                lookup: out[i].row[1],
-                type: out[i].row[2],
-                label: out[i].row[3]
-            };
-            labelled.push(item);
-        }
-        return labelled;
-    });
-
-}
-,
     update:function(n,user){
 
         if (n.id <=-1) throw ("Node must have ID >=0 for update");
@@ -438,13 +367,13 @@ var that = {
                         if (statements.length) {
                             
                             return cypher.executeStatements(statements).then(function (results) {
-                                var out = _.extend(n, that.addSchema(saved));//might be more convincing to reload the relationships instead of merging existing object
+                                var out = _.extend(n, addSchema(saved));//might be more convincing to reload the relationships instead of merging existing object
                                 return out;
                             });
 
                         }
                         else {
-                            return _.extend(n, that.addSchema(saved));//might be more convincing to reload the relationships instead of merging existing object
+                            return _.extend(n, addSchema(saved));//might be more convincing to reload the relationships instead of merging existing object
                         }
 
                 });
@@ -452,16 +381,17 @@ var that = {
         
     }
     ,
-    destroy: function (node) {//deletes node and relationships forever
+    //Deletes node and relationships forever
+    destroy: function (node) {
 
         var q = "match (n) where ID(n)=" + node.id + "  OPTIONAL MATCH (n)-[r]-()  delete n,r";
         return cypher.executeQuery(q);
     }
     ,
+    //Logical delete (relationships are left intact)
     //--removes labels and adds label Deleted
     //--sets property deleted = timestamp
-    //--stores labels in labels property
-    //--relationships are left intact
+    //--stores labels in oldlabels property
     delete: function (node) {
 
         if (!node || !node.id){
@@ -469,131 +399,65 @@ var that = {
         }
 
         var statements = [];
-
+        var q = "match(n)  where ID(n)=" + node.id + "  remove n:" + node.labels.join(':');
+        q += " set n:Deleted,n.oldlabels={labels},n.deleted=timestamp()  return ID(n),n,LABELS(n)";
+        
         //remove existing labels and add deleted label
-        statements.push(cypher.buildStatement("match(n)  where ID(n)=" + node.id + "  remove n:" + node.labels.join(':') + " set n:Deleted,n.oldlabels={labels},n.deleted=timestamp()  return ID(n),n,LABELS(n)", "row", { "labels": node.labels }, true));
-
+        statements.push(cypher.buildStatement(q, "row", { "labels": node.labels }, true));
         return cypher.executeStatements(statements).then(function (results) {
             var nodeData = results[0].data[0].row;
             var deleted = nodeData[1];
             deleted.id = nodeData[0];
             deleted.labels = nodeData[2];
-            return that.addSchema(deleted);
+            return addSchema(deleted);
         });
     }
     ,
+    //Removes 'Deleted' label and restores old labels
+    //Currently requires the 'oldlabels' property to be present on the node
     restore: function (node) {
 
         if (!node || !node.id){
             throw "node not supplied";
         }
 
-        //only supports 1 node at the mo
-        var statements = [];
+        var q = "match(n)  where ID(n)=" + node.id + "  set n:" + node.oldlabels.join(':');
+        q += " remove n:Deleted,n.oldlabels,n.deleted return ID(n),n,LABELS(n) ";
 
-        //remove existing labels and add deleted label
-        //  statements.push(cypher.buildStatement("match(n)  where ID(n)=" + node.id + "  remove n:" + node.labels.join(':') + " set n:Deleted,n.labels={labels},n.relationships={rels},n.deleted=timestamp()", "row", { "rels": rels, "labels": node.labels }, true));
-        
-        statements.push(cypher.buildStatement("match(n)  where ID(n)=" + node.id + "  set n:" + node.oldlabels.join(':') + " remove n:Deleted,n.oldlabels,n.deleted return ID(n),n,LABELS(n) ", "row", null, true));
-
-        return cypher.executeStatements(statements).then(function (results) {
+        return cypher.executeQuery(q).then(function (results) {
             
             var nodeData = results[0].data[0].row;
             var saved = utils.camelCase(nodeData[1]);
             saved.id = nodeData[0];
             saved.labels = nodeData[2].sort();
-            return that.addSchema(saved);
-        });
-    }
-    /*
-    ,
- 
-     getImages : function (n) {
-
-        //nb these properties are in the temp object when sent out
-        if (n.temp === undefined || (n.temp.isPicture === undefined || n.temp.isGroup === undefined)) {
-            
-            return that.get(n.id).then(function (nLoaded) {
-                return getImages(nLoaded);
-            });
-        }
-        else {
-            return getImages(n);
-        }
-    }
-    
-,
-    getImageRelationships: function (edge) { //loks up id/label first then call get by label
-
-        //TODO: NEEDS UPDATING SINCE CHANGE FROM IMAGEPATH TO IMAGEURL
-        var q = "match (n) - [r] - (c1) - [r2] - (c2) - [r3] - (m) where (c1:Painting or c1:Drawing) and (c2:Painting or c2:Drawing)  and ID(n) = " + edge.startNode + " and ID(m) = " + edge.endNode + "  return c1,labels(c1),c2,labels(c2) limit 50";//type(r)
-        
-        return cypher.executeQuery(q).then(function (data) {
-            
-            var out = data.map(function (val) {
-                
-                var from = val.row[0];
-                from.temp = {
-                 //   thumbUrl: getThumbnailUrl(from.ImagePath)
-                };
-                
-                from.labels = val.row[1];
-                
-                var to = val.row[2];
-                to.temp = {
-                 //   thumbUrl: getThumbnailUrl(to.ImagePath)
-                };
-                
-                to.labels = val.row[3];
-                
-                return {
-                    from: from,
-                    to: to
-                };
-
-            });
-            
-            return out;
+            return addSchema(saved);
         });
     }
     ,
-    //returns a single node using the supplied query
-    //q must be a match that returns a single entity n
-    single: function (q) {
-        q = q + " return ID(n),n.Lookup";
-        return cypher.executeQuery(q, "row").then(function (data) {
-            var out = data.map(function (d) {
-                return {
-                    id: d.row[0],
-                    lookup: d.row[1]
-                };
-
-            })[0];
-            return out;
-        });
-    }
-      ,
-    //options.q can be any cypher query with node specified as n
-    //options.limit limit the number of items returned
-    list: function (options) {
-
-        options.q += "  return ID(n),n,LABELS(n) ";
-        if (options.limit) {
-            options.q += " limit " + options.limit;
-        }
-        
-        return cypher.executeQuery(options.q, "row")
-            .then(function (data) {
-                var out = data.map(function (item) {
-                    var n = utils.camelCase(data[0].row[1]);
-                    n.id = data[0].row[0];
-                    n.labels = data[0].row[2];
-                    return that.addSchema(n);
-                });
-                return out;
+    list:{
+        //returns an array of the labels (not pictures) that have this label
+        labelled: function (label,limit) {
+            
+            limit = limit || 50;
+            var statements = [];
+            statements.push(cypher.buildStatement("match (n:Label:" + changeCase.pascalCase(label) + ") return ID(n),n.Lookup,n.Type,n.Label limit " + limit, "row"));
+            return cypher.executeStatements(statements).then(function (results) {
+                var labelled = [];
+                var out = results[0].data;
+                for (var i = 0; i < out.length; i++) {
+                    var item = {
+                        id: out[i].row[0],
+                        lookup: out[i].row[1],
+                        type: out[i].row[2],
+                        label: out[i].row[3]
+                    };
+                    labelled.push(item);
+                }
+                return labelled;
             });
+
+        }
     }
-    */
 };
 
 

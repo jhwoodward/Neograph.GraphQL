@@ -8,18 +8,20 @@
     var changeCase = require("change-case");
 
 var that = {
-    getMatch:function(id,alias)
+    //Provide match to match on label(s) eg :Picture
+    getMatch:function(id,alias,match)
     {
+        match = match || "";
         alias = alias || "n";
         
         var parsed = that.parseIdOrLabel(id);
         var q;
         
         if (parsed.id){
-            q = "match (" + alias + ")  where ID(" + alias + ") = " + parsed.id;
+            q = "match (" + alias + match + ")  where ID(" + alias + ") = " + parsed.id;
         }
         else if (parsed.label){
-            q = "match (" + alias + ":Label)  where " + alias + ".Label = '" + parsed.label + "'";
+            q = "match (" + alias + match + ":Label)  where " + alias + ".Label = '" + parsed.label + "'";
         }
         return q;
     }

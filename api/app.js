@@ -1,9 +1,9 @@
 
 module.exports = function(config){
     
-    "use strict";
+   "use strict";
     
-    var router = require('express').Router();
+   var router = require('express').Router();
      
    require("./node.routes")(config,router);
    require("./picture.routes")(config,router);

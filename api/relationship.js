@@ -22,8 +22,8 @@ module.exports = function(config){
         var q = parsed1 + " with n " + parsed2;
         
         q += " with n,m match (n) <- [:BY] - (c1:Picture) - [r] - (c2:Picture) - [:BY] -> (m)";
-        q+= " with c1,c2,r match c1 - [:IMAGE] - (i1:Main:Image) "
-        q+= " with c1,c2,i1,r match c2 - [:IMAGE] - (i2:Main:Image) "
+        q+= " with c1,c2,r match c1 - [:IMAGE] - (i1:Main:Image) ";
+        q+= " with c1,c2,i1,r match c2 - [:IMAGE] - (i2:Main:Image) ";
         q+= " return c1,ID(c1),labels(c1),i1,c2,ID(c2),labels(c2),i2,type(r) limit 50";
         
         return cypher.executeQuery(q).then(function (data) {
@@ -67,7 +67,7 @@ module.exports = function(config){
         
          for (var i = 0; i < rels.length; i++) {
                     
-            p = predicate.get(rels[i].row[4])
+            p = predicate.get(rels[i].row[4]);
             if (direction){
                 p.setDirection(direction);
             }
@@ -108,7 +108,7 @@ module.exports = function(config){
         }
 
         return relationships;
-    }
+    };
     
     
     var relationships = function(statements)
@@ -146,47 +146,54 @@ var that = {
 
         if (edge.id) //update
         {
-            
-            let statements = [];
-            statements.push(cypher.buildStatement("match (a)-[r]->(b) where ID(a) = " + edge.start.id + " and ID(b)=" + edge.end.id + " and ID(r)=" + edge.id + " delete r"));
-            statements.push(cypher.buildStatement("match(a),(b) where ID(a)=" + edge.start.id + " and ID(b) = " + edge.end.id + " create (a)-[r:" + edge.type + " {props}]->(b) return r"
-                                    , "graph"
-                                    , { "props": edge.properties }));
-
-            return cypher.executeStatements(statements)
-                    .then(function (results) {
-                return graph.build(results[0].data);
-            });
-
-
+            that.update(edge);
         }
         else //new
         {
-            var aIsPerson = edge.start.labels.indexOf("Person") > -1;
-            var bIsProvenance = edge.end.labels.indexOf("Provenance") > -1;
-            var bIsGroup = edge.end.labels.indexOf("Group") > -1;
-            var bIsPeriod = edge.end.labels.indexOf("Period") > -1;
-            
-            var tagAwithB = ((aIsPerson && (bIsProvenance || bIsGroup || bIsPeriod)) && edge.type != "INFLUENCES") || edge.type === "TYPE_OF";
-            
-            let statements = [];
-            
-            if (tagAwithB) {
-                statements.push(cypher.buildStatement("match(a) where ID(a)=" + edge.start.id + " set a:" + edge.end.Lookup));
-            }
-            
-            statements.push(cypher.buildStatement("match(a),(b) where ID(a)=" + edge.start.id + " and ID(b) = " + edge.end.id + " create (a)-[r:" + edge.type + " {props}]->(b) return r"
-                    , "graph"
-                    , { "props": edge.properties }));
-               
-            return cypher.executeStatements(statements)
-                    .then(function (results) {
-                        var out = graph.build(results[statements.length - 1].data);
-                        return out;
-            });
+            that.insert(edge);
         }
     }
-  
+    ,
+    update:function(edge){
+      
+        let statements = [];
+        statements.push(cypher.buildStatement("match (a)-[r]->(b) where ID(a) = " + edge.start.id + " and ID(b)=" + edge.end.id + " and ID(r)=" + edge.id + " delete r"));
+        statements.push(cypher.buildStatement("match(a),(b) where ID(a)=" + edge.start.id + " and ID(b) = " + edge.end.id + " create (a)-[r:" + edge.type + " {props}]->(b) return r"
+                                , "graph"
+                                , { "props": edge.properties }));
+
+        return cypher.executeStatements(statements)
+                .then(function (results) {
+            return graph.build(results[0].data);
+        });
+    }
+    ,
+    insert:function(edge){
+      
+        var aIsPerson = edge.start.labels.indexOf("Person") > -1;
+        var bIsProvenance = edge.end.labels.indexOf("Provenance") > -1;
+        var bIsGroup = edge.end.labels.indexOf("Group") > -1;
+        var bIsPeriod = edge.end.labels.indexOf("Period") > -1;
+        
+        var tagAwithB = ((aIsPerson && (bIsProvenance || bIsGroup || bIsPeriod)) && edge.type != "INFLUENCES") || edge.type === "TYPE_OF";
+        
+        let statements = [];
+        
+        if (tagAwithB) {
+            statements.push(cypher.buildStatement("match(a) where ID(a)=" + edge.start.id + " set a:" + edge.end.Lookup));
+        }
+        
+        statements.push(cypher.buildStatement("match(a),(b) where ID(a)=" + edge.start.id + " and ID(b) = " + edge.end.id + " create (a)-[r:" + edge.type + " {props}]->(b) return r"
+                , "graph"
+                , { "props": edge.properties }));
+            
+        return cypher.executeStatements(statements)
+                .then(function (results) {
+                    var out = graph.build(results[statements.length - 1].data);
+                    return out;
+        });
+            
+    }
     ,
     delete: function (edge) {
 
@@ -195,8 +202,8 @@ var that = {
             var statements = [];
             
             //remove label that may be in place due to relationship
-            statements.push(cypher.buildStatement("match (a) where ID(a) = " + edge.start.id + " remove a:" + edge.end.Lookup));
-            statements.push(cypher.buildStatement("match (a)-[r]->(b) where ID(a) = " + edge.start.id + " and ID(b)=" + edge.end.id + " and ID(r)=" + edge.id + " delete r"));
+            statements.push(cypher.buildStatement("match (a) where ID(a) = " + edge.start.id + " remove a:" + edge.end.label));
+            statements.push(cypher.buildStatement("match (a)-[r]->(b) where ID(r)=" + edge.id + " delete r"));
             //     console.log(statements);
             return cypher.executeStatements(statements);
 
@@ -221,7 +228,20 @@ var that = {
         });
         }
         ,
-        //Relationships with other 'Label' (non picture) nodes
+        //All relationships
+        //NB will return all pictures by an artist or in a category 
+        //Used by picture.getwithrels
+        all:function(id){
+            var match = utils.getMatch(id);
+            var statements = [];
+            //out 
+            statements.push(cypher.buildStatement(match + " with n match (n) - [r] -> (m)  return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label", "row"));
+            //in
+            statements.push(cypher.buildStatement(match + " with n match (n) <- [r] - (m)  return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label", "row"));
+            return relationships(statements);
+        }
+        ,
+        //Relationships with 'Label' (non picture) nodes
         //Aggregated by [predicate + direction ('->' or '-<')] which form the object keys
         conceptual: function (id) {
 
@@ -268,7 +288,7 @@ var that = {
             
             return cypher.executeQuery(q).then(function(data){
                 return build(data);
-            })
+            });
         }
      
     }
