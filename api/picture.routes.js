@@ -36,9 +36,13 @@ module.exports = function(config,router){
             });
         });
      
+   //for more complex queries combining property, label and predicate searches 
+   //post a json object like
+   //{site:"artsy",labels:[Delacroix,Drawing],props:{props:[Title],val:"sketchbook"},predicate:{predicate:"BY",target:"Delacroix"}}
    
-       router.route('/picture/list/labelled/:id/:pageNum/:pageSize/:sort/:sortOrder').get(function(req,res){
-        picture.list.labelled(req.params.id,req.params.pageNum,req.params.pageSize,req.params.sort,req.params.sortOrder)
+   var listLabelled = function(req,res){
+       
+         picture.list.labelled(req.params)
             .then(function (data) {
                 if (!data){
                     res.sendStatus(204);
@@ -50,86 +54,59 @@ module.exports = function(config,router){
             .catch(function (err) {
                 res.status(500).json(err);
             });
-        });
-        //TODO: ADD OVERLOADS FOR LABELLED
+            
+   }
+       router.route('/picture/list/labelled/:labels/:pageNum/:pageSize/:sort/:sortOrder').get(listLabelled);
+       router.route('/picture/list/labelled/:labels/:pageNum/:pageSize/:sort').get(listLabelled);
+       router.route('/picture/list/labelled/:labels/:pageNum').get(listLabelled);
+       router.route('/picture/list/labelled/:labels').get(listLabelled);
 
-   
+
+ var listProperty = function(req,res){
+            
+          picture.list.property(req.params)
+            .then(function (data) {
+                if (!data){
+                    res.sendStatus(204);
+                }
+                else{
+                    res.status(200).json(data);
+                }
+            })
+            .catch(function (err) {
+                res.status(500).json(err);
+            });
+            
+        }
+
+   router.route('/picture/list/property/:prop/:val/:pageNum/:pageSize/:sort/:sortOrder').get(listProperty);
+   router.route('/picture/list/property/:prop/:val/:pageNum/:pageSize').get(listProperty);
+   router.route('/picture/list/property/:prop/:val/:pageNum').get(listProperty);
+   router.route('/picture/list/property/:prop/:val').get(listProperty);
+
+        var listPredicate = function(req,res){
+            
+             picture.list.predicate(req.params)
+            .then(function (data) {
+                if (!data){
+                    res.sendStatus(204);
+                }
+                else{
+                    res.status(200).json(data);
+                }
+            })
+            .catch(function (err) {
+                res.status(500).json(err);
+            });
+            
+        }
         
-   router.route('/picture/list/:predicate/:id/:pageNum/:pageSize/:sort/:sortOrder').get(function(req,res){
-        picture.list.predicate(req.params.id,req.params.predicate,req.params.pageNum,req.params.pageSize,req.params.sort,req.params.sortOrder)
-            .then(function (data) {
-                if (!data){
-                    res.sendStatus(204);
-                }
-                else{
-                    res.status(200).json(data);
-                }
-            })
-            .catch(function (err) {
-                res.status(500).json(err);
-            });
-        });
+   router.route('/picture/list/:predicate/:id/:pageNum/:pageSize/:sort/:sortOrder').get(listPredicate);
+   router.route('/picture/list/:predicate/:id/:pageNum/:pageSize').get(listPredicate);
+   router.route('/picture/list/:predicate/:id/:pageNum').get(listPredicate);
+   router.route('/picture/list/:predicate/:id').get(listPredicate);
 
 
-    router.route('/picture/list/:predicate/:id/:pageNum/:pageSize/:sort').get(function(req,res){
-        picture.list.predicate(req.params.id,req.params.predicate,req.params.pageNum,req.params.pageSize,req.params.sort)
-            .then(function (data) {
-                if (!data){
-                    res.sendStatus(204);
-                }
-                else{
-                    res.status(200).json(data);
-                }
-            })
-            .catch(function (err) {
-                res.status(500).json(err);
-            });
-        });
-
-            router.route('/picture/list/:predicate/:id/:pageNum/:pageSize').get(function(req,res){
-        picture.list.predicate(req.params.id,req.params.predicate,req.params.pageNum,req.params.pageSize)
-            .then(function (data) {
-                if (!data){
-                    res.sendStatus(204);
-                }
-                else{
-                    res.status(200).json(data);
-                }
-            })
-            .catch(function (err) {
-                res.status(500).json(err);
-            });
-        });
-
-    router.route('/picture/list/:predicate/:id/:pageNum').get(function(req,res){
-        picture.list.predicate(req.params.id,req.params.predicate,req.params.pageNum)
-            .then(function (data) {
-                if (!data){
-                    res.sendStatus(204);
-                }
-                else{
-                    res.status(200).json(data);
-                }
-            })
-            .catch(function (err) {
-                res.status(500).json(err);
-            });
-        });
-
-      router.route('/picture/list/:predicate/:id').get(function(req,res){
-        picture.list.predicate(req.params.id,req.params.predicate)
-            .then(function (data) {
-                if (!data){
-                    res.sendStatus(204);
-                }
-                else{
-                    res.status(200).json(data);
-                }
-            })
-            .catch(function (err) {
-                res.status(500).json(err);
-            });
-        });
 
     
 
