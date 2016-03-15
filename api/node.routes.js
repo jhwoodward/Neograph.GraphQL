@@ -1,12 +1,12 @@
-module.exports = function(config){
+module.exports = function(config,router){
     
     "use strict";
 
-    var router = require('express').Router();
+   
     var node = require('./node')(config);
 
 
-      router.route('/node/labelled/:id').post(function (req, res) {
+    router.route('/node/labelled/:id').post(function (req, res) {
 
         node.getLabelled(req.params.id)
           .then(function(data){
@@ -34,40 +34,7 @@ module.exports = function(config){
         
 
         
-    router.route('/node/match').post(function(req,res){
-        var txt = req.body.txt;
-        var restrict = req.body.restrict;
-        
-        var searchFn;
-        
-        if (!restrict){
-            searchFn = search.all;
-        }
-        else if (restrict === "user")
-        {
-            searchFn = function(){
-                return search.label("User",txt);
-            };
-        }
-        else if (restrict === "label")
-        {
-            searchFn = function(){
-                return search.label("Label",txt);
-            };
-        }
-        else{
-            res.status(501).json("Restrict option not implemented: " + restrict);
-        }
-
-        searchFn(txt)
-            .then(function (data) {
-                res.status(200).json(data);
-            })
-            .catch(function (err) {
-                res.status(500).json(err);
-            });
-    });
-    
+   
  
 
    
@@ -159,23 +126,7 @@ module.exports = function(config){
                 res.status(500).json(err);
              });
     });
-    /*
-    router.route('/node/getProps').post(function (req, res) {
-        res.status(200).json(nodeUtils.getPropsFromLabels(req.body));
-    });
-    
-    router.route('/node/getImages').post(function (req, res) {
-
-        node.getImages(req.body)
-          .then(function(data){
-               res.status(200).json(data);
-            })
-          .catch(function (err) {
-               res.status(500).json({error:err});
-           });
-    });
-    
-*/
+   
 
     return router;
 
