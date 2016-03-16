@@ -4,9 +4,9 @@ module.exports = function(config){
     
     var extend = require('extend');
     config = extend (require('./config.default'), config);
-    var nodeUtils = require("./node.utils")(config);
     var cypher = require("./cypher")(config);
     var utils = require("./utils")(config);
+     var image = require("./image")(config);
 
 var that = {
     //returns graph data object for given query(q), with properties nodes, edges containing neo node/edge data by property=id
@@ -53,7 +53,7 @@ var that = {
                 var n = utils.camelCase(node.properties);
                 n.labels = node.labels;
                 n.id = node.id;
-                nodeUtils.configureImage(n.image);
+                image.configure(n.image);
                 nodes[node.id] = n;
                 nodeArray.push(n);
             }

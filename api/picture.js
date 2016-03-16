@@ -46,7 +46,7 @@
                 }
             });
     
-}
+};
 
 var getList = function(options) {
 
@@ -65,7 +65,7 @@ var getList = function(options) {
         pageSize:20,
         sort:"created",
         sortOrder:"DESC"
-    }
+    };
     
     options = _.extend(defaults,options);
 
@@ -98,7 +98,7 @@ var getList = function(options) {
         return out;
                 
     });
-}
+};
     
 var that = {
     //Same as get node except that all images are returned instead of just the main one
@@ -117,7 +117,7 @@ var that = {
                     return n;
                 });
             });
-        })
+        });
     }
     ,
     //can optionally pass an alternative predicate such as 'of'

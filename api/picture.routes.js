@@ -55,7 +55,7 @@ module.exports = function(config,router){
                 res.status(500).json(err);
             });
             
-   }
+   };
        router.route('/picture/list/labelled/:labels/:pageNum/:pageSize/:sort/:sortOrder').get(listLabelled);
        router.route('/picture/list/labelled/:labels/:pageNum/:pageSize/:sort').get(listLabelled);
        router.route('/picture/list/labelled/:labels/:pageNum').get(listLabelled);
@@ -77,7 +77,7 @@ module.exports = function(config,router){
                 res.status(500).json(err);
             });
             
-        }
+        };
 
    router.route('/picture/list/property/:prop/:val/:pageNum/:pageSize/:sort/:sortOrder').get(listProperty);
    router.route('/picture/list/property/:prop/:val/:pageNum/:pageSize').get(listProperty);
@@ -99,7 +99,7 @@ module.exports = function(config,router){
                 res.status(500).json(err);
             });
             
-        }
+        };
         
    router.route('/picture/list/:predicate/:id/:pageNum/:pageSize/:sort/:sortOrder').get(listPredicate);
    router.route('/picture/list/:predicate/:id/:pageNum/:pageSize').get(listPredicate);

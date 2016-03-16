@@ -41,55 +41,6 @@ var that = {
         });
 
     }
- 
-    ,
-    //Updates node's labels 
-    //Updates nodes labelled with this node if node.label is updated
-    //returns node
-    update:function(n){
-        
-        that.addParents(n);
-
-        var statements=[];
-        
-        //check passed in node against saved node for differences
-        return node.get(n)
-            .then(function(existing){
-            
-            //simpler to 
-            var arrLabelsToRemove = _.difference(existing.labels,n.labels);//The array to inspect, The values to exclude.
-            var arrLabelsToAdd = _.difference(n.labels,existing.labels);
-            
-            if (arrLabelsToAdd.length || arrLabelsToRemove.length) {
-                var sAddLabels = "";
-                if (arrLabelsToAdd.length) {
-                    sAddLabels = " set n:" + arrLabelsToAdd.join(":");
-                }
-                
-                var sRemoveLabels = "";
-                if (arrLabelsToRemove.length) {
-                    sRemoveLabels = " remove n:" + arrLabelsToRemove.join(":");
-                }
-                statements.push({ statement: "match(n) where ID(n)=" + n.id + sRemoveLabels + sAddLabels});
-            }
-            
-            //update item labels if changing Label property
-            if (existing.label && existing.label != n.label && n.label) {
-                statements.push({ statement: "match(n:" + existing.label + ") remove n:" + existing.label + " set n:" + n.label });
-            }
-            
-            if (statements.length){
-                return cypher.executeStatements(statements).then(function(){
-                    return node.get(n);
-                });
-            }
-            else{
-                return n;
-            }
-                
-        });
-     
-    }
     ,
     //if the node has any values in its labels array that match picture or person types
     //the corresponding parent label is added to the array
@@ -105,7 +56,7 @@ var that = {
                 out.push("Person");
             }
         }
-        return n.labels;
+        return labels;
     }
     ,
     addParents:function(n){

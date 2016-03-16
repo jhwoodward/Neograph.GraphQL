@@ -2,17 +2,16 @@ module.exports = function(config){
     
     "use strict";
     
-    var extend = require('extend');
-    config = extend ( require('./config.default'), config);
+   
+    var _=require("lodash");
+    config = _.extend(require('./config.default'), config);
     var type = require("./type")(config);
     var predicate = require("./predicate")(config);
     var cypher = require("./cypher")(config);
     var utils = require("./utils")(config);
-    var node = require("./node");
     var changeCase = require("change-case");
 
 
-    var _=require("lodash");
     
     
      //get picture comparisons for 2 nodes (edge.startNode, edge.edgeNode) on 'BY'
@@ -106,12 +105,10 @@ module.exports = function(config){
     {
         return cypher.executeStatements(statements).then(function (results) {
 
-                var relationships = {};
-
                 var outbound = build(results[0].data,"out");
                 var inbound = build(results[1].data,"in");
-
-                return _.extend(outbound,inbound);
+                var relationships = _.extend(outbound,inbound);
+                return relationships;
             });
     };
 
@@ -239,120 +236,6 @@ var that = {
     }
     ,
     list:{
-        //Create relationships for node n
-        //requires presence of n.relationships
-        create:function(n){
-
-            var statements = [];
-            
-            for (let prop in n.relationships) {
-                let rel = n.relationships[prop];
-                if (rel.predicate.direction === "out") {
-                    for (let i = 0; i < rel.items.length; i++) {
-                        let e = rel.items[i];
-                        statements.push(cypher.buildStatement("match n,m where ID(n)=" + saved.id + " and ID(m)=" + e.id + "  create (n)-[r:" + rel.predicate.lookup + "] -> (m)"));
-                    }
-                }
-                else if (rel.predicate.direction === "in") {
-                    for (let i = 0; i < rel.items.length; i++) {
-                        let e = rel.items[i];
-                        statements.push(cypher.buildStatement("match n,m where ID(n)=" + saved.id + " and ID(m)=" + e.id + "  create (m)-[r:" + rel.predicate.lookup + "] -> (n)"));
-                    }
-                }
-                else{
-                    throw ("Invalid predicate direction: " + rel.predicate.direction);
-                }
-            }
-
-            return cypher.executeStatements(statements).then(function(){
-                return node.getWithRels(n);
-            });
-            
-        }
-        ,
-        update:function(n)
-        {
-              
-            var statements = [];
-            
-                //check passed in node against saved node for differences
-            return node.getWithRels(n)
-            .then(function(existing){
-                
-                for (let rel in n.relationships) {
-                    let rel = n.relationships[rel];
-                    let existingRel = existing.relationships[rel];
-                    if (!existingRel) {
-                        rel.itemsToRemove = [];
-                        rel.itemsToAdd = rel.items;
-                    }
-                    else {
-                        var existingRelIds = existingRel.map(function (e) { return e.id; });
-                        var newRelIds = rel.items.map(function (e) { return e.id; });
-                        rel.itemsToRemove = _.difference(existingRelIds,newRelIds).map(function (e) { return { id: e }; });
-                        rel.itemsToAdd = _.difference(newRelIds,existingRelIds).map(function (e) { return { id: e }; });
-                    }
-                    
-                    for (let i = 0; i < rel.itemsToAdd.length; i++) {
-                        let e = rel.itemsToAdd[i];
-                        if (rel.predicate.direction === "out") {
-                            statements.push(cypher.buildStatement("match n,m where ID(n)=" + saved.id + " and ID(m)=" + e.id + "  create (n)-[r:" + rel.predicate.lookup + "] -> (m)"));
-                        }
-                        else if (rel.predicate.direction === "in")  {
-                            statements.push(cypher.buildStatement("match n,m where ID(n)=" + saved.id + " and ID(m)=" + e.id + "  create (m)-[r:" + rel.predicate.lookup + "] -> (n)"));
-                        }
-                        else{
-                            throw("Invalid predicate direction: " + rel.predicate.direction);
-                        }
-                    }
-                    
-                    for (let i = 0; i < rel.itemsToRemove.length; i++) {
-                        let e = rel.itemsToRemove[i];
-                        if (rel.predicate.direction === "out") {
-                            statements.push(cypher.buildStatement("match (n) - [r:" + rel.predicate.lookup + "] -> (m) where ID(n)=" + saved.id + " and ID(m)=" + e.id + "  delete r"));
-                        }
-                        else if (rel.predicate.direction === "in")  {
-                            statements.push(cypher.buildStatement("match (m) - [r:" + rel.predicate.lookup + "] -> (n) where ID(n)=" + saved.id + " and ID(m)=" + e.id + "  delete r"));
-                        }
-                        else{
-                            throw("Invalid predicate direction: " + rel.predicate.direction);
-                        }
-                    }
-                }
-                
-                for (let rel in existing.relationships) {
-                    let rel = n.relationships[rel];
-                    let existingRel = existing.relationships[rel];
-                    if (!rel) {
-                        for (var i = 0; i < existingRel.items.length; i++) {
-                            var e = existingRel.items[i];
-                            if (existingRel.predicate.direction === "out") {
-                                statements.push(cypher.buildStatement("match (n) - [r:" + existingRel.predicate.lookup + "] -> (m) where ID(n)=" + saved.id + " and ID(m)=" + e.id + "  delete r"));
-                            }
-                            else if (existingRel.predicate.direction === "in") {
-                                statements.push(cypher.buildStatement("match (m) - [r:" + existingRel.predicate.lookup + "] -> (n) where ID(n)=" + saved.id + " and ID(m)=" + e.id + "  delete r"));
-                            }
-                            else{
-                                throw("Invalid predicate direction: " + existingRel.predicate.direction);
-                            }
-                        }
-                    }
-                }
-                
-                if (statements.length){
-                    return cypher.executeStatements(statements).then(function(){
-                        return node.getWithRels(n);
-                    });
-                }
-                else{
-                    return existing;
-                }
-                
-                
-                
-            });
-        }
-        ,
         //web links
         web:function(id){
         var q = utils.getMatch(id) + "  with n match (n) - [r:LINK] - (m:Link)     return ID(m), m.Name,m.Url";

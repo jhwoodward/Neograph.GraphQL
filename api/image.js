@@ -2,10 +2,11 @@ module.exports = function(config){
     
     "use strict";
     
-    config = extend ( require('./config.default'), config);
+    var _= require("lodash");
+    config = _.extend( require('./config.default'), config);
     var utils = require("./utils")(config);
     var cypher = require("./cypher")(config);
-    var _=require("lodash");
+   
 
 var that = {
 

@@ -14,8 +14,9 @@
     var relationship = require("./relationship")(config);
     var changeCase = require("change-case");
   
-//node props , ID, labels
-var parseNodeData = function(data){
+//data[0].row 
+//n , ID, labels
+function parseNodeData(data){
     var n = utils.camelCase(data[0].row[0]);
     if (data[0].row[1]){
         n.id = data[0].row[1];
@@ -27,14 +28,16 @@ var parseNodeData = function(data){
     return n;
 }
 
-var getNode = function (match, where) {
+function getNode(match, where) {
     
     return cypher.executeQuery("match(" + match + ")  where " + where + " with n optional match (" + match + ") -[:IMAGE] - (i:Image:Main) return n,ID(n),LABELS(n),i ", "row")
     .then(function (data) {
         if (data.length) {
 
             var n = parseNodeData(data);
-            n.image = image.configure(data[0].row[3]);
+            if (data[0].row[3]){
+               n.image = image.configure(data[0].row[3]);
+            }
             addSchema(n);
             return n;
         }
@@ -42,36 +45,193 @@ var getNode = function (match, where) {
             return null;
         }
     });
-};
+}
 
-var getNodeById= function (id) {
+function getNodeById(id) {
     return getNode("n", "ID(n) = " + id );
-};
+}
 
-var getNodeByLabel= function (label) {
+function getNodeByLabel(label) {
     return getNode("n:Label", "n.Label = '" + label + "'");
-};
+}
 
-var addRelationships = function (n) {
-    if (n){
-        return relationship.list.conceptual(n)
-        .then(function(r){
+function addRelationships(n) {
+   
+    return relationship.list.conceptual(n).then(function(r){
+        
+        if (Object.keys(r).length){
             n.relationships=r;
-            return n;
-            //didn't ask for this so shouldn't strictly do it
-            /*
-            return that.list.labelled(n.Label,50).then(function(labelled){
-                n.labelled= labelled;
-                return n;
-            });
-            */
-        });
-    }
-    else{
-        return null;
-    }
-};
+        }
+        return n;
+    });
+}
 
+ //Create relationships for node n
+        //requires presence of n.relationships
+function createRelationships(n){
+
+    var statements = [];
+    
+    for (let prop in n.relationships) {
+        let rel = n.relationships[prop];
+        if (rel.predicate.direction === "out") {
+            for (let i = 0; i < rel.items.length; i++) {
+                let e = rel.items[i];
+                statements.push(cypher.buildStatement("match n,m where ID(n)=" + saved.id + " and ID(m)=" + e.id + "  create (n)-[r:" + rel.predicate.lookup + "] -> (m)"));
+            }
+        }
+        else if (rel.predicate.direction === "in") {
+            for (let i = 0; i < rel.items.length; i++) {
+                let e = rel.items[i];
+                statements.push(cypher.buildStatement("match n,m where ID(n)=" + saved.id + " and ID(m)=" + e.id + "  create (m)-[r:" + rel.predicate.lookup + "] -> (n)"));
+            }
+        }
+        else{
+            throw ("Invalid predicate direction: " + rel.predicate.direction);
+        }
+    }
+
+    return cypher.executeStatements(statements).then(function(){
+        return that.getWithRels(n);
+    });
+    
+}
+
+function updateRelationships(n)
+{
+        
+    var statements = [];
+    
+        //check passed in node against saved node for differences
+    return that.getWithRels(n).then(function(existing){
+        
+        for (let key in n.relationships) {
+            let rel = n.relationships[key];
+            let existingRel = existing.relationships ? existing.relationships[key]:null;
+            if (!existingRel) {
+                rel.itemsToRemove = [];
+                rel.itemsToAdd = rel.items;
+            }
+            else {
+                var existingRelIds = existingRel.map(function (e) { return e.id; });
+                var newRelIds = rel.items.map(function (e) { return e.id; });
+                rel.itemsToRemove = _.difference(existingRelIds,newRelIds).map(function (e) { return { id: e }; });
+                rel.itemsToAdd = _.difference(newRelIds,existingRelIds).map(function (e) { return { id: e }; });
+            }
+            
+            for (let i = 0; i < rel.itemsToAdd.length; i++) {
+                let e = rel.itemsToAdd[i];
+                if (rel.predicate.direction === "out") {
+                    statements.push(cypher.buildStatement("match n,m where ID(n)=" + n.id + " and ID(m)=" + e.id + "  create (n)-[:" + rel.predicate.lookup.toUpperCase() + "] -> (m)"));
+                }
+                else if (rel.predicate.direction === "in")  {
+                    statements.push(cypher.buildStatement("match n,m where ID(n)=" + n.id + " and ID(m)=" + e.id + "  create (m)-[:" + rel.predicate.lookup.toUpperCase() + "] -> (n)"));
+                }
+                else{
+                    throw("Invalid predicate direction: " + rel.predicate.direction);
+                }
+            }
+            
+            for (let i = 0; i < rel.itemsToRemove.length; i++) {
+                let e = rel.itemsToRemove[i];
+                if (rel.predicate.direction === "out") {
+                    statements.push(cypher.buildStatement("match (n) - [r:" + rel.predicate.lookup.toUpperCase() + "] -> (m) where ID(n)=" + n.id + " and ID(m)=" + e.id + "  delete r"));
+                }
+                else if (rel.predicate.direction === "in")  {
+                    statements.push(cypher.buildStatement("match (m) - [r:" + rel.predicate.lookup.toUpperCase() + "] -> (n) where ID(n)=" + n.id + " and ID(m)=" + e.id + "  delete r"));
+                }
+                else{
+                    throw("Invalid predicate direction: " + rel.predicate.direction);
+                }
+            }
+        }
+        
+        for (let key in existing.relationships) {
+            let rel = n.relationships ? n.relationships[key]:null;
+            let existingRel = existing.relationships[key];
+            if (!rel) {
+                for (var i = 0; i < existingRel.items.length; i++) {
+                    var e = existingRel.items[i];
+                    if (existingRel.predicate.direction === "out") {
+                        statements.push(cypher.buildStatement("match (n) - [r:" + existingRel.predicate.lookup + "] -> (m) where ID(n)=" + n.id + " and ID(m)=" + e.id + "  delete r"));
+                    }
+                    else if (existingRel.predicate.direction === "in") {
+                        statements.push(cypher.buildStatement("match (m) - [r:" + existingRel.predicate.lookup + "] -> (n) where ID(n)=" + n.id + " and ID(m)=" + e.id + "  delete r"));
+                    }
+                    else{
+                        throw("Invalid predicate direction: " + existingRel.predicate.direction);
+                    }
+                }
+            }
+        }
+        
+        if (statements.length){
+            return cypher.executeStatements(statements).then(function(){
+                return that.getWithRels(n);
+            });
+        }
+        else{
+            return existing;
+        }
+
+    });
+}
+
+    
+ function updateProperties(n){
+        
+         //update props
+        var q = "match(n) where ID(n)={id} set n={props} return n,ID(n),LABELS(n)";
+        return cypher.executeQuery(q, "row", { "id": n.id,"props": that.trimForSave(n) })
+        .then(parseNodeData);
+    }
+
+function updateLabels(n){
+
+        label.addParents(n);
+
+        var statements=[];
+        
+        //check passed in node against saved node for differences
+        return that.get(n)
+            .then(function(existing){
+            
+            //simpler to 
+            var arrLabelsToRemove = _.difference(existing.labels,n.labels);//The array to inspect, The values to exclude.
+            var arrLabelsToAdd = _.difference(n.labels,existing.labels);
+            
+            if (arrLabelsToAdd.length || arrLabelsToRemove.length) {
+                var sAddLabels = "";
+                if (arrLabelsToAdd.length) {
+                    sAddLabels = " set n:" + arrLabelsToAdd.join(":");
+                }
+                
+                var sRemoveLabels = "";
+                if (arrLabelsToRemove.length) {
+                    sRemoveLabels = " remove n:" + arrLabelsToRemove.join(":");
+                }
+                statements.push({ statement: "match(n) where ID(n)=" + n.id + sRemoveLabels + sAddLabels});
+            }
+            
+            //update item labels if changing Label property
+            if (existing.label && existing.label != n.label && n.label) {
+                statements.push({ statement: "match(n:" + existing.label + ") remove n:" + existing.label + " set n:" + n.label });
+            }
+            
+            if (statements.length){
+                return cypher.executeStatements(statements).then(function(){
+                    return that.get(n);
+                });
+            }
+            else{
+                return n;
+            }
+                
+        });
+     
+    
+    
+}
 //Returns an object containing properties defined by types in labels
 //Requires n.labels
 var getSchema = function (n) {
@@ -191,34 +351,24 @@ var that = {
         if (user) {
             q += " with n  MATCH (u:User {Lookup:'" + user.lookup + "'})  create (u) - [s:CREATED]->(n)";
         }
-        q += " return ID(n)";
+        q += " return n,ID(n)";
 
         return cypher.executeQuery(q, "row", { "props": that.trimForSave(n) })
             .then(function (data) {
-                n.id = data[0].row[0];
-                return relationship.list.create(n);
+                n=parseNodeData(data);
+                return createRelationships(n);
             });
     }
-    ,
-    updateProperties:function(n){
-        
-         //update props
-        var q = "match(n) where ID(n)={id} set n={props} return n,ID(n),LABELS(n)";
-        return cypher.executeQuery(q, "row", { "id": n.id,"props": that.trimForSave(n) })
-        .then(parseNodeData);
-    }
+
     ,
     update:function(n,user){
 
         if (n.id <=-1) throw ("Node must have ID >=0 for update");
 
-        var statements = [];
-        
         //NB Have to update labels before properties in case label property has been modified
-        return  label.update(n).then(
-                that.updateProperties).then(
-                relationship.list.update
-                );  
+        return  updateLabels(n).
+                then(function(){return updateProperties(n)}).
+                then(function(){return updateRelationships(n)});  
     }
     ,
     //Deletes node and relationships forever
@@ -238,19 +388,12 @@ var that = {
             throw "node not supplied";
         }
 
-        var statements = [];
         var q = "match(n)  where ID(n)=" + node.id + "  remove n:" + node.labels.join(':');
-        q += " set n:Deleted,n.oldlabels={labels},n.deleted=timestamp()  return ID(n),n,LABELS(n)";
+        q += " set n:Deleted,n.oldlabels={labels},n.deleted=timestamp()  return n,ID(n),LABELS(n)";
         
-        //remove existing labels and add deleted label
-        statements.push(cypher.buildStatement(q, "row", { "labels": node.labels }, true));
-        return cypher.executeStatements(statements).then(function (results) {
-            var nodeData = results[0].data[0].row;
-            var deleted = nodeData[1];
-            deleted.id = nodeData[0];
-            deleted.labels = nodeData[2];
-            return addSchema(deleted);
-        });
+        return cypher.executeQuery(q, "row", { "labels": node.labels })
+        .then(parseNodeData);
+  
     }
     ,
     //Removes 'Deleted' label and restores old labels
@@ -264,14 +407,8 @@ var that = {
         var q = "match(n)  where ID(n)=" + node.id + "  set n:" + node.oldlabels.join(':');
         q += " remove n:Deleted,n.oldlabels,n.deleted return n,ID(n),LABELS(n) ";
 
-        return cypher.executeQuery(q).then(function (results) {
-            
-            var nodeData = results[0].row;
-            var saved = utils.camelCase(nodeData[0]);
-            saved.id = nodeData[1];
-            saved.labels = nodeData[2].sort();
-            return addSchema(saved);
-        });
+        return cypher.executeQuery(q)
+        .then(parseNodeData);
     }
     ,
     getSchema:function(id){
