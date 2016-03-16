@@ -13,7 +13,7 @@
     var changeCase = require("change-case");
     var _ = require("lodash");
 
-var getPicture = function(id){
+    var getPicture = function(id){
     
          var q= utils.getMatch(id,"n",":Picture") + " with n optional match (n) - [:IMAGE] -> (i:Image)  return n,ID(n),LABELS(n),i,ID(i),LABELS(i) ";
         
