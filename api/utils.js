@@ -6,6 +6,7 @@
     config = extend ( require('./config.default'), config);
     var cypher = require("./cypher")(config);
     var changeCase = require("change-case");
+    var _ = require("lodash");
 
 var that = {
     //Provide match to match on label(s) eg :Picture
@@ -52,12 +53,25 @@ var that = {
         return out;          
     }
     ,
-    pascalCase : function(props){
-        var out = {};
-        for (var key in props){
-            out[changeCase.pascalCase(key)] = props[key];
+    pascalCase : function(obj){
+        
+        if (_.isArray(obj))
+        {
+            //array - pascal case array values
+            for (var i =0;i<obj.length;i++){
+                obj[i]=changeCase.pascalCase(obj[i]);
+            }
+            return obj;
         }
-        return out;          
+        else{
+            //object - pascal case property keys
+            var out = {};
+            for (var key in obj){
+                out[changeCase.pascalCase(key)] = obj[key];
+            }
+            return out;       
+        }
+        
     }
   
     ,
@@ -66,6 +80,20 @@ var that = {
    
     return Object.keys(obj).length === 0 && JSON.stringify(obj) === JSON.stringify({});
 
+}
+,
+//compares to object arrays 
+//returning any elements that are in 'a' but not in 'b'
+difference:function(a,b,compareOn){
+    compareOn = compareOn || "id";
+    var aComp = a.map(function (e) { return e[compareOn]; });
+    var bComp = b.map(function (e) { return e[compareOn]; });
+    return  _.difference(aComp,bComp)
+        .map(function (e) { 
+            var out = {};
+            out[compareOn] =e;
+           return out;
+    });
 }
 
 

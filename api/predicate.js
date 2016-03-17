@@ -10,53 +10,43 @@ module.exports = function(config)
     var _ = require("lodash");
 
     function Predicate(data){
-            _.extend(this,data);
-        }
+        _.extend(this,data);
+          }
         
     Predicate.prototype.setDirection = function(direction){
         this.direction = direction;
-        
-        if (!this.isDirectional || !this.direction) {
-            this.key = this.lookup;
-        }
-        else if (this.direction === "out") {
-            this.key = this.lookup + " ->";
-        }
-        else {
-            this.key = this.lookup + " <-";
-        }
         return this;
     };
     
     Predicate.prototype.toString = function(){
-        
-        if (!this.isDirectional || !this.direction || this.direction === "out") {
-            return this.lookup.replace(/_/g, ' ').toLowerCase();
-        }
-        else {
-            if (this.reverse){
+        if (this.direction==="in" && !this.symmetrical){
+             if (this.reverse){//use reverse if present
                 return this.reverse.replace(/_/g, ' ').toLowerCase();
             }
             else{
-
-                if (this.lookup == "CREATED" || this.lookup==="CREATES")
+                var lookup = this.lookup.toUpperCase();
+                if (lookup === "CREATED" || lookup==="CREATES")
                     return "created by";
-                else if (this.lookup == "INFLUENCES")
+                else if (lookup === "INFLUENCES")
                     return "influenced by";
-                else if (this.lookup == "INSPIRES")
+                else if (lookup === "INSPIRES")
                     return "inspired by";
-                else if (this.lookup == "ANTICIPATES")
+                else if (lookup === "ANTICIPATES")
                     return "anticipated by";
-                else if (this.lookup == "DEVELOPS")
+                else if (lookup === "DEVELOPS")
                     return "developed by";
-                else if (this.lookup == "DEPICTS")
+                else if (lookup === "DEPICTS")
                     return "depicted by";
-                else if (this.lookup == "TYPE_OF")
+                else if (lookup === "TYPE_OF")
                     return "type(s)";
                 else
                     return "(" + this.lookup.replace(/_/g, ' ').toLowerCase() + ")";
             }
-        }
+        };
+        
+       // if (!this.isDirectional || !this.direction || this.direction === "out") {
+       return this.lookup.replace(/_/g, ' ').toLowerCase();
+       
         
     };
     
@@ -91,7 +81,7 @@ var that = {
         
         if (!p)
         {
-             console.warn('Warning - predicate ' + lookup + ' does not exist in DB');
+             console.warn('Predicate ' + lookup + ' does not exist in DB');
              
              p = {
                 
@@ -132,7 +122,7 @@ var that = {
                     };
                 }
                 else {
-                    console.log("Warning - predicate without lookup! (id:" + d.row[0] + ")");
+                    console.warn("Predicate without lookup (id:" + d.row[0] + ")");
                 }
 
             }

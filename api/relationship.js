@@ -192,12 +192,104 @@ var that = {
             //remove label that may be in place due to relationship
             statements.push(cypher.buildStatement("match (a) where ID(a) = " + edge.start.id + " remove a:" + edge.end.label));
             statements.push(cypher.buildStatement("match (a)-[r]->(b) where ID(r)=" + edge.id + " delete r"));
-            //     console.log(statements);
             return cypher.executeStatements(statements);
 
         }
 
     }
+    ,
+createStatement(n,predicate,e){
+    
+    if (e.id===undefined || e.id < 0)
+    {
+        throw ("Cannot create relationship with item that has no id");
+    }
+     if (n.id===undefined || e.id < 0)
+    {
+        throw ("Cannot create relationship for item without id");
+    }
+        
+    var relType = predicate.lookup.toUpperCase();
+    var q;
+    if (predicate.direction === "out") {
+        q = "match n,m where ID(n)=" + n.id + " and ID(m)=" + e.id;
+        q += "  create (n) - [:" + relType + "] -> (m)";
+    }
+    else if (predicate.direction === "in")  {
+        q = "match n,m where ID(n)=" + n.id + " and ID(m)=" + e.id;
+        q += "  create (n) <- [:" + relType + "] - (m)";
+    }
+    else{
+        throw("Invalid predicate direction: " + predicate.direction);
+    }
+    return cypher.buildStatement(q);
+}
+              ,
+ removeStatement:function(n,predicate,e){
+    var relType = predicate.lookup.toUpperCase();
+    var q;
+    if (predicate.direction === "out") {
+        q = "match (n) - [r:" + relType + "] -> (m)";
+        q += " where ID(n)=" + n.id + " and ID(m)=" + e.id + "  delete r";
+    }
+    else if (predicate.direction === "in")  {
+        q = "match (n) <- [r:" + relType + "] - (m)";
+        q += " where ID(n)=" + n.id + " and ID(m)=" + e.id + "  delete r";
+    }
+    else{
+        throw("Invalid predicate direction: " + predicate.direction);
+    }
+     return cypher.buildStatement(q);
+}
+,
+//returns an array of relationship differences between the passed in node 
+//and its saved version
+//each item in the array is formed
+//{
+//  "predicate":{"lookup":"LIKES",direction:"out"}
+//  ,add:[{id:123},{id:456}],remove:[{id:789},{id:543}]}
+//}
+difference:function(n){
+    
+    return that.list.conceptual(n).then(function(existingRelationships){
+        
+        var diff = [];
+        
+        for (let key in n.relationships) {
+            //key is the predicate.toString() which includes direction (influenced / influenced by)
+            let newRel = n.relationships[key];
+            if (!_.isArray(newRel.items)){ 
+                throw("Relationship items must be an array");
+            }
+            
+            let existingRel = existingRelationships ? existingRelationships[key]:null;
+            if (!existingRel) {
+                let changed = {predicate:newRel.predicate,add:newRel.items,remove:[]};
+                diff.push(changed);
+            }
+            else {
+                 let itemsToRemove=utils.difference(existingRel.items,newRel.items);
+                 let itemsToAdd=utils.difference(newRel.items,existingRel.items);
+                  if (itemsToAdd.length || itemsToRemove.length){
+                    let changed = {predicate:newRel.predicate,add:itemsToAdd,remove:itemsToRemove};
+                    diff.push(changed);
+                }
+            }
+        }
+        
+        for (let key in existingRelationships) {
+            let newRel = n.relationships ? n.relationships[key]:null;
+            let existingRel = existingRelationships[key];
+            if (!newRel) {     //relationship not present in node so remove it from DB
+                let changed = {predicate:existingRel.predicate,remove:existingRel.items,add:[]};
+                diff.push(changed);
+            }
+        }
+        
+        return diff;
+
+    });
+}
     ,
     saveLinks:function(){
         
