@@ -41,7 +41,7 @@ var that = {
                     };
                 }
                 else {
-                    console.log("Warning - type without lookup! (id:" + d.row[0] + ")");
+                    console.warn("Type without lookup (id:" + d.row[0] + ")");
                 }
             }
 
