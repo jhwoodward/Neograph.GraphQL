@@ -42,7 +42,7 @@ module.exports = function(config)
                 else
                     return "(" + this.lookup.replace(/_/g, ' ').toLowerCase() + ")";
             }
-        };
+        }
         
        // if (!this.isDirectional || !this.direction || this.direction === "out") {
        return this.lookup.replace(/_/g, ' ').toLowerCase();

@@ -4,7 +4,6 @@
     
     var extend = require('extend');
     config = extend ( require('./config.default'), config);
-    var nodeUtils = require("./node.utils")(config);
     var cypher = require("./cypher")(config);
 
 

@@ -4,10 +4,10 @@
     
     var extend = require('extend');
     config = extend ( require('./config.default'), config);
-    var nodeUtils = require("./node.utils")(config);
     var utils = require("./utils")(config);
     var type = require("./type")(config);
     var cypher = require("./cypher")(config);
+    var image = require("./image")(config);
     var graph = require("./graph")(config);
     var relationship = require("./relationship")(config);
     var changeCase = require("change-case");
@@ -31,11 +31,11 @@
                     for (let i=0;i < data.length;i++)
                     {
                         if (data[i].row[3]){
-                            var image = utils.camelCase(data[i].row[3]);
-                            image.id = data[i].row[4];
-                            image.labels= data[i].row[5];
-                            nodeUtils.configureImage(image);
-                            n.images.push(image);
+                            var img = utils.camelCase(data[i].row[3]);
+                            img.id = data[i].row[4];
+                            img.labels= data[i].row[5];
+                            image.configure(img);
+                            n.images.push(img);
                         }
                     }
                     
@@ -48,16 +48,16 @@
     
 };
 
-var getList = function(options) {
+var getList = function(q,options) {
 
     if (options.pageSize){
-        options.pageSize = parseInt(pageSize);
+        options.pageSize = parseInt(options.pageSize);
     }
     if (options.pageNum){
-        options.pageNum = parseInt(pageNum);
+        options.pageNum = parseInt(options.pageNum);
     }
     if (options.sort && options.sort != "created"){
-        options.sort = changeCase.pascalCase(sort);
+        options.sort = changeCase.pascalCase(options.sort);
     }
 
     var defaults = {
@@ -72,9 +72,9 @@ var getList = function(options) {
     var startIndex = (options.pageNum-1) * options.pageSize;
     var endIndex = startIndex + options.pageSize;
 
-    options.q += "  return p,ID(p),LABELS(p),i,ID(i) order by p." + options.sort + " " + options.sortOrder;
+    q += "  return p,ID(p),LABELS(p),i,ID(i) order by p." + options.sort + " " + options.sortOrder;
     
-    return cypher.executeQuery(options.q)
+    return cypher.executeQuery(q)
     .then(function (data) {
         
         data = data.slice(startIndex,endIndex);
@@ -83,14 +83,22 @@ var getList = function(options) {
         
         for (let i=0;i < data.length;i++)
         {
-            
-            var p = utils.camelCase(data[i].row[0]);
-            p.id = data[i].row[1];
-            p.labels = data[i].row[2];
-            p.image = utils.camelCase(data[i].row[3]);
+              var props = utils.camelCase(data[i].row[0]);
+               var p;     
+                if (options.format==="compact"){
+                    p = {title:props.title};
+                }
+                else{
+                    p= _.extend(props,{
+                        id:data[i].row[1],
+                        labels: data[i].row[2]
+                    });
+                }
+                
+            p.image =  image.configure(data[i].row[3],options);
             p.image.id = data[i].row[4];
-            nodeUtils.configureImage(p.image);
-            
+              
+
             out.push(p);
             
         }
@@ -124,39 +132,39 @@ var that = {
     //same as /relationship/visual/id if not predicate passed in
     list:
     {
-        predicate:  function (options) {
+        predicate:  function (params,options) {
             
-            options.predicate = options.predicate.toUpperCase();
+            params.predicate = params.predicate.toUpperCase();
             //allow multiple predicates input instead
-            if (options.predicate==="OF")
+            if (params.predicate==="OF")
             {
-               options.predicate +="|:DEPICTS";
+               params.predicate +="|:DEPICTS";
             }
-            options.q = utils.getMatch(id) + " with n match (n) <- [:" + options.predicate + "] - (p:Picture) - [:IMAGE] -> (i:Image:Main)";
-            return getList(options);
+            var q = utils.getMatch(params.id) + " with n match (n) <- [:" + params.predicate + "] - (p:Picture) - [:IMAGE] -> (i:Image:Main)";
+            return getList(q,options);
         }
         ,
        //returns an array of pictures that have this label
-        labelled: function (options) {
+        labelled: function (params,options) {
             
-            var labels = options.labels.split(',')
+            var labels = params.labels.split(',')
                         .map(function(label){
                             return changeCase.pascalCase(label); 
                             })
                         .join(":");
                         
-            options.q = "match (p:Picture:" + labels + ") - [:IMAGE] -> (i:Image:Main)";
-            return getList(options);
+            var q = "match (p:Picture:" + labels + ") - [:IMAGE] -> (i:Image:Main)";
+            return getList(q,options);
             
         }
         ,
-        property:function(options){
+        property:function(params,options){
             
-            options.prop=changeCase.pascalCase(options.prop);
-            options.q = "match (p:Picture) - [:IMAGE] -> (i:Image:Main)";
-            options.q += " where p." + options.prop + "=~ '(?i).*" + options.val + ".*' ";
+            params.prop=changeCase.pascalCase(params.prop);
+            var q = "match (p:Picture) - [:IMAGE] -> (i:Image:Main)";
+            q += " where p." + params.prop + "=~ '(?i).*" + params.val + ".*' ";
             
-            return getList(options);
+            return getList(q,options);
         }
     }
    

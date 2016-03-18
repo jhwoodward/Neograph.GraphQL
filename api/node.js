@@ -26,7 +26,7 @@ function parseNodeData(data){
         n.labels = data[0].row[2];
         if (n.labels) {
             n.labels = n.labels.sort();
-        };
+        }
     }
     return n;
 }
@@ -118,19 +118,16 @@ function updateRelationships(n)
         
          //update props
         var q = "match(n) where ID(n)={id} set n={props} return n,ID(n),LABELS(n)";
-        return cypher.executeQuery(q, "row", { "id": n.id,"props": that.trimForSave(n) });
-        //.then(parseNodeData);
+        return cypher.executeQuery(q, "row", { "id": n.id,"props": that.trimForSave(n) })
+        .then(parseNodeData);
     }
 
 //write
 function updateLabels(n){
 
         label.addParents(n);
-        
         n.labels=utils.pascalCase(n.labels);
-
         var statements=[];
-        
         //check passed in node against saved node for differences
         return that.get(n)
             .then(function(existing){
@@ -159,23 +156,8 @@ function updateLabels(n){
             
            if (statements.length){
                 return cypher.executeStatements(statements);
-            }
-            
-            /*
-            if (statements.length){
-                return cypher.executeStatements(statements).then(function(){
-                    return that.get(n);
-                });
-            }
-            else{
-                return n;
-            }
-            */
-                
+            }  
         });
-     
-    
-    
 }
 //Returns an object containing properties defined by types in labels
 //Requires n.labels
@@ -290,7 +272,7 @@ var that = {
         if (!(n.labels instanceof Array)) throw ("Node must have labels array property");
 
         label.addParents(n);
-        n.labels=utils.pascalCase(n.labels)
+        n.labels=utils.pascalCase(n.labels);
         var q = "create (n:" + n.labels.join(":") + " {props}) with n set n.created=timestamp() ";
 
         //if user passed as second argument create a link to the user from this node
@@ -317,10 +299,10 @@ var that = {
         //NB Have to update labels before properties in case label property has been modified
         return  updateLabels(n).
                 then(function(){
-                    return updateProperties(n)
+                    return updateProperties(n);
                 }).
                 then(function(){
-                    return updateRelationships(n)
+                    return updateRelationships(n);
                 }).
                 then(function(){
                     return that.getWithRels(n);

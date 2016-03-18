@@ -4,9 +4,9 @@ module.exports = function(config,router){
 
     var relationship = require('./relationship')(config);
 
-  router.route('/relationship/visual/:id1/:id2').get(function (req, res) {
+  router.route('/relationships/visual/:id1/:id2').get(function (req, res) {
 
-        relationship.list.visual(req.params.id1,req.params.id2)
+        relationship.list.visual(req.params.id1,req.params.id2,req.query)
           .then(function(data){
                res.status(200).json(data);
             })
@@ -15,9 +15,12 @@ module.exports = function(config,router){
            });
     });
     
-  router.route('/relationship/visual/:id').get(function (req, res) {
+  router.route('/relationships/visual/:id').get(function (req, res) {
 
-        relationship.list.visual(req.params.id)
+        var options = req.query;
+        //possible options:
+        //format=compact 
+        relationship.list.visual(req.params.id,undefined,options)
           .then(function(data){
                res.status(200).json(data);
             })
@@ -29,9 +32,9 @@ module.exports = function(config,router){
     
 
     
-     router.route('/relationship/conceptual/:id').get(function (req, res) {
+     router.route('/relationships/conceptual/:id').get(function (req, res) {
 
-        relationship.list.conceptual(req.params.id)
+        relationship.list.conceptual(req.params.id,req.query)
           .then(function(data){
                res.status(200).json(data);
             })
@@ -40,9 +43,9 @@ module.exports = function(config,router){
            });
     });
     
-     router.route('/relationship/inferred/:id').get(function (req, res) {
+     router.route('/relationships/inferred/:id').get(function (req, res) {
 
-        relationship.list.inferred(req.params.id)
+        relationship.list.inferred(req.params.id,req.query)
           .then(function(data){
                res.status(200).json(data);
             })

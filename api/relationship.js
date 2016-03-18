@@ -8,6 +8,7 @@ module.exports = function(config){
     var type = require("./type")(config);
     var predicate = require("./predicate")(config);
     var cypher = require("./cypher")(config);
+    var image = require("./image")(config);
     var utils = require("./utils")(config);
     var changeCase = require("change-case");
 
@@ -15,7 +16,7 @@ module.exports = function(config){
     
     
      //get picture comparisons for 2 nodes (edge.startNode, edge.edgeNode) on 'BY'
-    function getVisualComparisons(id1,id2) { //loks up id/label first then call get by label
+    function getVisualComparisons(id1,id2,options) { //loks up id/label first then call get by label
 
         var parsed1 = utils.getMatch(id1,"n");
         var parsed2 =  utils.getMatch(id2,"m");
@@ -30,21 +31,34 @@ module.exports = function(config){
             
             var out = data.map(function (val) {
                 
-                var from = utils.camelCase(val.row[0]);
-                from.id=val.row[1];
-                from.labels = val.row[2];
-                from.image = image.configure(val.row[3]);
+                var item = {};
+                
+                var props = {
+                    from: utils.camelCase(val.row[4]),
+                    to: utils.camelCase(val.row[0])
+                    };
+                    
+                if (options.format==="compact"){
+                    item.from = {title:props.from.title};
+                    item.to = {title:props.to.title} ;
+                    item.predicate = predicate.get(val.row[8]).toString();
+                }
+                else{
+                    item.from = _.extend(props.from,{
+                            id:val.row[1],
+                            labels: val.row[2]
+                    });
+                    item.to = _.extend(props.to,{
+                            id:val.row[5],
+                            labels: val.row[6]
+                    });
+                    item.predicate = predicate.get(val.row[8]);
+                }
+                
+                item.from.image = image.configure(val.row[3],options);
+                item.to.image = image.configure(val.row[7],options);
 
-                var to = utils.camelCase(val.row[4]);
-                to.id=val.row[5];
-                to.labels = val.row[6];
-                to.image = image.configure(val.row[7]);
-
-                return {
-                    from: from,
-                    predicate:predicate.get(val.row[8]),
-                    to: to
-                };
+                return item;
 
             });
             
@@ -57,7 +71,11 @@ module.exports = function(config){
     //,image,ID(image)
     //(image is optional)
     //the predicate.toString() forms the object key
-    var build = function(rels,direction){
+    //size refers to the size of the output, can be compact or undefined
+    var build = function(rels,direction,options){
+        
+        var defaultOptions = {format:"verbose"};
+        options = _.extend(defaultOptions,options)
         
         var p,key,item,relationships={},itemKeys={};
         
@@ -77,21 +95,39 @@ module.exports = function(config){
             
             //add image for picture if present
             if (rels[i].row[6]){
-                item.image= image.configure(rels[i].row[6]);
+                item.image= image.configure(rels[i].row[6],options);
                 item.image.id = rels[i].row[7];
             }
             
+            let compact = item.image ? item.image.thumb : (item.label || item.id);
+            
             if (!relationships[key]) {
-                relationships[key] = {
-                    predicate: p, 
-                    items: [item]
-                };
+                
+                   if (options.format==="compact"){
+         
+                       relationships[key] = [compact];
+                   }
+                   else{
+                           relationships[key] = {
+                            predicate: p, 
+                            items: [item]
+                        };
+                   }
+            
                 itemKeys[key] = [item.id];
             }
             else {
                 //add if not present
                 if (itemKeys[key].indexOf(item.id) === -1){
-                    relationships[key].items.push(item);
+                    
+                    if (options.format==="compact"){
+                            relationships[key].push(compact);
+                    }
+                    else{
+                            relationships[key].items.push(item);
+                    }
+                
+                    
                     itemKeys[key].push(item.id);
                 }
             }
@@ -100,13 +136,14 @@ module.exports = function(config){
         return relationships;
     };
     
-    
-    var relationships = function(statements)
+    //options
+    //format=compact
+    var relationships = function(statements,options)
     {
         return cypher.executeStatements(statements).then(function (results) {
 
-                var outbound = build(results[0].data,"out");
-                var inbound = build(results[1].data,"in");
+                var outbound = build(results[0].data,"out",options);
+                var inbound = build(results[1].data,"in",options);
                 var relationships = _.extend(outbound,inbound);
                 return relationships;
             });
@@ -346,19 +383,20 @@ difference:function(n){
         //All relationships
         //NB will return all pictures by an artist or in a category 
         //Used by picture.getwithrels
-        all:function(id){
+        all:function(id,options){
             var match = utils.getMatch(id);
             var statements = [];
             //out 
             statements.push(cypher.buildStatement(match + " with n match (n) - [r] -> (m)  return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label", "row"));
             //in
             statements.push(cypher.buildStatement(match + " with n match (n) <- [r] - (m)  return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label", "row"));
-            return relationships(statements);
+            return relationships(statements,options);
         }
         ,
         //Relationships with 'Label' (non picture) nodes
         //Aggregated by [predicate + direction ('->' or '-<')] which form the object keys
-        conceptual: function (id) {
+        //size is compact,default,detailed
+        conceptual: function (id,options) {
 
             var match = utils.getMatch(id);
             var statements = [];
@@ -366,7 +404,7 @@ difference:function(n){
             statements.push(cypher.buildStatement(match + " with n match (n) - [r] -> (m:Label)  return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label", "row"));
             //in
             statements.push(cypher.buildStatement(match + " with n match (n) <- [r] - (m:Label)  where  NOT(n <-[:BY]-(m))    return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label", "row"));
-            return relationships(statements);
+            return relationships(statements,options);
     }
         ,
         //Relationships with 'Picture' nodes
@@ -375,10 +413,10 @@ difference:function(n){
         //-- to get pictures related to a picture
         //-- if 2 ids are passed
         //------picture comparisons between the 2 nodes are returned
-        visual:function(id1,id2){
+        visual:function(id1,id2,options){
             
             if (id1 && id2){
-                return getVisualComparisons(id1,id2);
+                return getVisualComparisons(id1,id2,options);
             }
             else{
                 var match = utils.getMatch(id1);
@@ -387,7 +425,7 @@ difference:function(n){
                 statements.push(cypher.buildStatement(match + " with n match (n) - [r] -> (m:Picture) - [:IMAGE] -> (i:Image:Main)  return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label,i,ID(i),LABELS(i)", "row"));
                 //in
                 statements.push(cypher.buildStatement(match + " with n match (n) <- [r] - (m:Picture)- [:IMAGE] -> (i:Image:Main)  return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label,i,ID(i),LABELS(i)", "row"));
-                return relationships(statements);
+                return relationships(statements,options);
             }
            
         }
@@ -395,14 +433,14 @@ difference:function(n){
         // relationships with creators
         // inferred from relationships between their creations
         // they may or may not have an explicit relationship defined
-        inferred:function(id){
+        inferred:function(id,options){
             var q = utils.getMatch(id);
 
             q += " with n match (n) <- [:BY] - (c1:Picture) - [] - (c2:Picture) - [:BY] -> (m)";
             q += " return ID(m), m.Lookup,m.Type,-1,'inferred',m.Label";
             
             return cypher.executeQuery(q).then(function(data){
-                return build(data);
+                return build(data,options);
             });
         }
      

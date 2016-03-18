@@ -64,7 +64,7 @@ module.exports = function(config,router){
     router.route('/node/save').post(function(req,res){
           node.save(req.body.node,req.body.user)
             .then(function (data) {
-                res.status(200).json(data);
+                res.status(201).json(data);
              })
              .catch(function (err) {
                 res.status(500).json(err);

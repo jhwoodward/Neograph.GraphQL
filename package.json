@@ -9,7 +9,7 @@
     "email": "jw@vsys.co.uk"
   },
   "scripts": {
-    "lint": "jshint --exclude ./node_modules .",
+    "lint": "jshint --exclude ./node_modules,./test .",
     "prestart": "npm run lint",
     "start": "node app-host.js"
   },

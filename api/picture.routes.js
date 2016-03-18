@@ -40,7 +40,8 @@ module.exports = function(config,router){
    //post a json object like
    //{site:"artsy",labels:[Delacroix,Drawing],props:{props:[Title],val:"sketchbook"},predicate:{predicate:"BY",target:"Delacroix"}}
    
-   var listLabelled = function(req,res){
+ 
+   router.route('/picture/list/labelled/:labels').get(function(req,res){
        
          picture.list.labelled(req.params)
             .then(function (data) {
@@ -55,14 +56,10 @@ module.exports = function(config,router){
                 res.status(500).json(err);
             });
             
-   };
-       router.route('/picture/list/labelled/:labels/:pageNum/:pageSize/:sort/:sortOrder').get(listLabelled);
-       router.route('/picture/list/labelled/:labels/:pageNum/:pageSize/:sort').get(listLabelled);
-       router.route('/picture/list/labelled/:labels/:pageNum').get(listLabelled);
-       router.route('/picture/list/labelled/:labels').get(listLabelled);
+   });
 
 
- var listProperty = function(req,res){
+   router.route('/pictures/property/:prop/:val').get(function(req,res){
             
           picture.list.property(req.params)
             .then(function (data) {
@@ -77,16 +74,13 @@ module.exports = function(config,router){
                 res.status(500).json(err);
             });
             
-        };
+        });
 
-   router.route('/picture/list/property/:prop/:val/:pageNum/:pageSize/:sort/:sortOrder').get(listProperty);
-   router.route('/picture/list/property/:prop/:val/:pageNum/:pageSize').get(listProperty);
-   router.route('/picture/list/property/:prop/:val/:pageNum').get(listProperty);
-   router.route('/picture/list/property/:prop/:val').get(listProperty);
 
-        var listPredicate = function(req,res){
+
+   router.route('/pictures/:predicate/:id').get(function(req,res){
             
-             picture.list.predicate(req.params)
+             picture.list.predicate(req.params,req.query)
             .then(function (data) {
                 if (!data){
                     res.sendStatus(204);
@@ -99,12 +93,7 @@ module.exports = function(config,router){
                 res.status(500).json(err);
             });
             
-        };
-        
-   router.route('/picture/list/:predicate/:id/:pageNum/:pageSize/:sort/:sortOrder').get(listPredicate);
-   router.route('/picture/list/:predicate/:id/:pageNum/:pageSize').get(listPredicate);
-   router.route('/picture/list/:predicate/:id/:pageNum').get(listPredicate);
-   router.route('/picture/list/:predicate/:id').get(listPredicate);
+        });
 
 
 
