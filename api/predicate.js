@@ -114,7 +114,7 @@ var that = {
                 
                  if (d.row[1].Lookup) {
                     predicates[d.row[1].Lookup] = {
-                        id: d.row[0],
+                      //  id: d.row[0],
                         lookup: d.row[1].Lookup,
                         force: d.row[1].Force,//Attract or Repel
                         symmetrical:d.row[1].Symmetrical || false,

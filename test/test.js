@@ -1,2 +1,2 @@
-require("../api/node.test");
-require("../api/relationship.test");
+require("./node.test");
+require("./relationship.test");

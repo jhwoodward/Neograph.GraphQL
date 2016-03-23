@@ -100,6 +100,13 @@ var that = {
     },
     executeStatements: function (statements) {
         
+        //check that each statement is a statement and not just a query
+        statements = statements.map(function(s){
+            if (!s.statement)
+            {s = that.buildStatement(s);}
+            return s;
+        });
+        
         return cypher(statements).then(function (d) {
             if (d.errors.length) {
                 throw (new NeoError(d.errors[0], statements));

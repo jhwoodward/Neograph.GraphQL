@@ -45,7 +45,7 @@ function getNode(match, where) {
             if (data[0].row[3]){
                n.image = image.configure(data[0].row[3]);
             }
-            addSchema(n);
+         //   addSchema(n);
             return n;
         }
         else {
@@ -67,10 +67,18 @@ function getNodeByLabel(label) {
 //read
 function addRelationships(n) {
    
-    return relationship.list.conceptual(n).then(function(r){
+    return relationship.list.all(n).then(function(r){
         
         if (Object.keys(r).length){
-            n.relationships=r;
+            for (var key in r){
+                if (r[key].predicate.direction==="in"){
+                    n[r[key].predicate.reverse] = r[key].items;
+                }
+                else{
+                    n[r[key].predicate.lookup] = r[key].items;
+                }
+            }
+           // n.relationships=r;
         }
         return n;
     });
@@ -161,27 +169,35 @@ function updateLabels(n){
 }
 //Returns an object containing properties defined by types in labels
 //Requires n.labels
-var getSchema = function (n) {
-    var schema = {};
-        for (let i = 0; i < n.labels.length; i++) {
-            let label = n.labels[i];
-            if (!type.list[label]) continue;
-            var t = type.list[label];//retrieve the type from the label text
-            if (t.Props) {
-                var arrProps = t.Props.split(',');
-                for (let j = 0; j < arrProps.length; j++) {
-                    var prop = changeCase.camelCase(arrProps[j]);
-                    schema[prop] = "";
-                }
+function getSchema(labels) {
+    var label,t,schema = {};
+    for (let i = 0; i < labels.length; i++) {
+        label = labels[i];
+        t = type.list[changeCase.camelCase(label)];
+        if (!t) continue;//ignore if label does not have a type definition
+        
+        //can't use extend because need to ensure that required=true 
+        //always takes precendence over required=false
+        for (let key in t.props){
+            let required=false;
+            if (schema[key])
+            {
+                required = schema[key].required;
+            }
+            schema[key] = t.props[key];
+            if (required){
+                schema[key].required=true;
             }
         }
-        return schema;
-    };
+    }
+    return schema;
+}
 
 
-var addSchema = function(n){
-        return _.extend(getSchema(n),n);
-    };
+function addSchema(n){
+    n.schema = getSchema(n.labels);
+    return n;
+ }
 
 var that = {
     //get node by (internal)ID or label
@@ -195,14 +211,13 @@ var that = {
         }
  
     }
-    
     ,
     //Get node by (internal ID) or label
     //Add relationships
     getWithRels: function (id) {
-        
+        console.log('xfth');
         var parsed = utils.parseIdOrLabel(id);
-        
+        console.log(parsed);
         if (parsed.id){
             return getNodeById(parsed.id)
             .then(addRelationships);
@@ -233,6 +248,7 @@ var that = {
             key != "image" && 
             key !== "id" && 
             key !== "temp" &&
+            key !== "schema" &&
             key !== "web")//web links ?? not implemented yet
             {
                 props[key] = n[key];
@@ -350,7 +366,22 @@ var that = {
     }
     ,
     getSchema:function(id){
-        return that.get(id).then(getSchema);
+        return that.getLabels(id).then(function(labels){
+             return getSchema(labels);
+        });
+    }
+    ,
+    getLabels:function(id){
+        var q = utils.getMatch(id) + " with n return LABELS(n)";
+        return cypher.executeQuery(q)
+        .then(function (data) {
+            if (data.length) {
+                return data[0].row[0];
+            }
+            else {
+                return [];
+            }
+        });
     }
     ,
     list:{
@@ -358,20 +389,21 @@ var that = {
         labelled: function (label,limit) {
             
             limit = limit || 50;
-            var statements = [];
-            statements.push(cypher.buildStatement("match (n:Label:" + changeCase.pascalCase(label) + ") return ID(n),n.Lookup,n.Type,n.Label limit " + limit, "row"));
-            return cypher.executeStatements(statements).then(function (results) {
+            var q = "match (n:Label:" + changeCase.pascalCase(label) + ") return ID(n),n.Lookup,n.Type,n.Label limit " + limit;
+           console.log(q);
+            return cypher.executeQuery(q).then(function (data) {
+        
                 var labelled = [];
-                var out = results[0].data;
-                for (var i = 0; i < out.length; i++) {
+                for (var i = 0; i < data.length; i++) {
                     var item = {
-                        id: out[i].row[0],
-                        lookup: out[i].row[1],
-                        type: out[i].row[2],
-                        label: out[i].row[3]
+                        id: data[i].row[0],
+                        lookup: data[i].row[1],
+                        type: data[i].row[2],
+                        label: data[i].row[3]
                     };
                     labelled.push(item);
                 }
+                console.log(labelled);
                 return labelled;
             });
 

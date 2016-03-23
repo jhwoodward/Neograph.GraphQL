@@ -13,11 +13,11 @@ var that = {
     //format=compact
     configure : function (image,options) {
 
-        if (options.thumbWidth){
+        if (options && options.thumbWidth){
             options.thumbWidth = parseInt(options.thumbWidth);
         }
         var defaultOptions = {format:"verbose",thumbWidth:236};
-        options = _.extend(defaultOptions,options)
+        options = _.extend(defaultOptions,options);
         
         if (image) { 
             
@@ -34,6 +34,12 @@ var that = {
             if (image.cache) {
                 image.thumb.url = contentRoot + "thumbnail/" + image.cache.replace(/ /g, '%20');
                 image.url = contentRoot + "original/" + image.cache.replace(/ /g, '%20');
+            }
+            
+            if (image.cacheHigh) {
+                image.high={
+                    url:contentRoot + "original/" + image.cacheHigh.replace(/ /g, '%20')
+                };
             }
             
             //Set source info
@@ -53,19 +59,36 @@ var that = {
 
             delete image.cache;
             delete image.site;
-                
-            if (options.format==="compact")
-            {
-                delete image.site;
-                delete image.ref;
-                delete image.size;
-                delete image.cacheHigh;
-                delete image.urlCaptured;
-                delete image.source;
-            }
+            
+            //map properties to .full
+            image.full = {
+                url:image.url,
+                width:image.width,
+                height:image.height
+            };
+            
+            delete image.url;
+            delete image.width;
+            delete image.height;
+            
+            delete image.cacheHigh;
+            delete image.urlCaptured;
+            delete image.ref;
+            delete image.site;
+               
         }
         
         return image;
+    }
+    ,
+    //TODO: move cacheError label to image
+    error:function(data){
+        //data = {pictureId:123,url:"xxx"}
+        var q= "match (p:Picture) where ID(p)=" + data.pictureId + " set p:NotFound";
+        return cypher.executeQuery(q);
+       
+        
+        
     }
  
 

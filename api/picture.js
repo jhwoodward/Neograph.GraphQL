@@ -50,16 +50,18 @@
 
 var getList = function(q,options) {
 
-    if (options.pageSize){
-        options.pageSize = parseInt(options.pageSize);
+    if (options){
+        if (options.pageSize){
+            options.pageSize = parseInt(options.pageSize);
+        }
+        if (options.pageNum){
+            options.pageNum = parseInt(options.pageNum);
+        }
+        if (options.sort && options.sort != "created"){
+            options.sort = changeCase.pascalCase(options.sort);
+        }
     }
-    if (options.pageNum){
-        options.pageNum = parseInt(options.pageNum);
-    }
-    if (options.sort && options.sort != "created"){
-        options.sort = changeCase.pascalCase(options.sort);
-    }
-
+    
     var defaults = {
         pageNum:1,
         pageSize:20,
@@ -72,21 +74,34 @@ var getList = function(q,options) {
     var startIndex = (options.pageNum-1) * options.pageSize;
     var endIndex = startIndex + options.pageSize;
 
-    q += "  return p,ID(p),LABELS(p),i,ID(i) order by p." + options.sort + " " + options.sortOrder;
+    var query = q + "  return p,ID(p),LABELS(p),i,ID(i)";
+    query += " order by p." + options.sort + " " + options.sortOrder;
+    if (startIndex>0){
+        query += " skip " + (startIndex);
+    }
+    query += " limit " + options.pageSize;
+     
+    var count = q + " return count(p)";
     
-    return cypher.executeQuery(q)
-    .then(function (data) {
-        
-        data = data.slice(startIndex,endIndex);
+    var statements = [query,count];
+     
+    var out = {options:options,q:query,count:0,items:[]};
 
-        var out = [];
+    return cypher.executeStatements(statements)
+    .then(function (results) {
         
+        out.count = results[1].data[0].row[0];
+        
+      //  data = data.slice(startIndex,endIndex);
+      
+      var data = results[0].data;
+
         for (let i=0;i < data.length;i++)
         {
               var props = utils.camelCase(data[i].row[0]);
                var p;     
                 if (options.format==="compact"){
-                    p = {title:props.title};
+                    p = {id:data[i].row[1],title:props.title};
                 }
                 else{
                     p= _.extend(props,{
@@ -99,13 +114,56 @@ var getList = function(q,options) {
             p.image.id = data[i].row[4];
               
 
-            out.push(p);
+            out.items.push(p);
             
         }
 
         return out;
                 
+    }).error(function(x){
+        
+        
     });
+};
+
+
+var labelQuery = function(labels){
+    
+       labels = labels.split(',')
+                        .map(function(label){
+                            return changeCase.pascalCase(label); 
+                            })
+                        .join(":");
+                        
+       var q = "match (p:Picture) - [:IMAGE] -> (i:Image:Main)";
+       q += " where not p:CacheError and not p:NotFound  and p:" + labels;
+       
+       return q;
+};
+
+var propertyQuery = function(property){
+    
+    property.name=changeCase.pascalCase(property.name);
+    
+    var q = "match (p:Picture) - [:IMAGE] -> (i:Image:Main)";
+    q += " where  not p:CacheError and not p:NotFound and p." + property.name + "=~ '(?i).*" + property.value + ".*' ";
+    
+    return q;
+
+};
+
+
+var predicateQuery = function(predicate){
+
+    //allow multiple predicates input instead
+    var relType = predicate.lookup.toUpperCase();
+    if (relType==="OF")
+    {
+        relType +="|:DEPICTS";
+    }
+    var q = utils.getMatch(predicate.target) + " with n match (n) <- [:" + relType + "] - (p:Picture) - [:IMAGE] -> (i:Image:Main) where  not p:CacheError and not p:NotFound  ";
+    
+    return q;
 };
     
 var that = {
@@ -132,38 +190,43 @@ var that = {
     //same as /relationship/visual/id if not predicate passed in
     list:
     {
+        //Combines multiple queries
+        //params is json object posted
+        /*
+        combined:function(params,options){
+            
+            var q = [];
+            if (params.predicate){
+                q.push(predicateQuery(params.predicate));
+            }
+            if (params.property){
+                q.push(propertyQuery(params.property));
+            }
+            if (params.labels){
+                 q.push(labelQuery(params.labels));
+            }
+            
+            return getList(q,options);
+        }
+        ,
+        */
         predicate:  function (params,options) {
             
-            params.predicate = params.predicate.toUpperCase();
-            //allow multiple predicates input instead
-            if (params.predicate==="OF")
-            {
-               params.predicate +="|:DEPICTS";
-            }
-            var q = utils.getMatch(params.id) + " with n match (n) <- [:" + params.predicate + "] - (p:Picture) - [:IMAGE] -> (i:Image:Main)";
+            var q=predicateQuery({lookup:params.predicate,target:params.id});
             return getList(q,options);
         }
         ,
        //returns an array of pictures that have this label
         labelled: function (params,options) {
-            
-            var labels = params.labels.split(',')
-                        .map(function(label){
-                            return changeCase.pascalCase(label); 
-                            })
-                        .join(":");
-                        
-            var q = "match (p:Picture:" + labels + ") - [:IMAGE] -> (i:Image:Main)";
+  
+            var q = labelQuery(params.labels);
             return getList(q,options);
             
         }
         ,
         property:function(params,options){
-            
-            params.prop=changeCase.pascalCase(params.prop);
-            var q = "match (p:Picture) - [:IMAGE] -> (i:Image:Main)";
-            q += " where p." + params.prop + "=~ '(?i).*" + params.val + ".*' ";
-            
+
+            var q = propertyQuery({name:params.prop,value:params.val});
             return getList(q,options);
         }
     }

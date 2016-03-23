@@ -15,17 +15,18 @@ module.exports = function(config){
 
     
     
-     //get picture comparisons for 2 nodes (edge.startNode, edge.edgeNode) on 'BY'
-    function getVisualComparisons(id1,id2,options) { //loks up id/label first then call get by label
+     //Returns picture comparisons for 2 nodes 
+     //(id1,id2) on 'BY'
+    function getVisualComparisons(id1,id2,options) { 
 
         var parsed1 = utils.getMatch(id1,"n");
         var parsed2 =  utils.getMatch(id2,"m");
         var q = parsed1 + " with n " + parsed2;
         
         q += " with n,m match (n) <- [:BY] - (c1:Picture) - [r] - (c2:Picture) - [:BY] -> (m)";
-        q+= " with c1,c2,r match c1 - [:IMAGE] - (i1:Main:Image) ";
-        q+= " with c1,c2,i1,r match c2 - [:IMAGE] - (i2:Main:Image) ";
-        q+= " return c1,ID(c1),labels(c1),i1,c2,ID(c2),labels(c2),i2,type(r) limit 50";
+        q += " with c1,c2,r match c1 - [:IMAGE] - (i1:Main:Image) ";
+        q += " with c1,c2,i1,r match c2 - [:IMAGE] - (i2:Main:Image) ";
+        q += " return c1,ID(c1),labels(c1),i1,c2,ID(c2),labels(c2),i2,type(r) limit 50";
         
         return cypher.executeQuery(q).then(function (data) {
             
@@ -67,36 +68,43 @@ module.exports = function(config){
     }
     
     //Builds a relationships object from the following data structure:
-    //ID(target), target.Lookup,target.Type,ID(rel),TYPE(rel),target.Label
+    // target,ID(target),ID(rel),TYPE(rel)
     //,image,ID(image)
     //(image is optional)
     //the predicate.toString() forms the object key
     //size refers to the size of the output, can be compact or undefined
     var build = function(rels,direction,options){
         
-        var defaultOptions = {format:"verbose"};
-        options = _.extend(defaultOptions,options)
+        var defaultOptions = {format:"default"};
+        options = _.extend(defaultOptions,options);
         
         var p,key,item,relationships={},itemKeys={};
         
          for (var i = 0; i < rels.length; i++) {
                     
-            p = predicate.get(rels[i].row[4]);
+            p = predicate.get(rels[i].row[3]);//TYPE(rel)
             if (direction){
                 p.setDirection(direction);
             }
             key = p.toString();
-            item = {
-                id: rels[i].row[0],
-                lookup: rels[i].row[1],
-                type: rels[i].row[2],
-                label: rels[i].row[5]
-            };
+            if (options.format==="verbose"){
+                //return the full item
+                 item = utils.camelCase(rels[i].row[0]);
+            }
+            else{
+                 item = {
+                    label: rels[i].row[0].Label,
+                    type: rels[i].row[0].Type
+                };
+              
+            }
+           
+            item.id=rels[i].row[1];
             
             //add image for picture if present
-            if (rels[i].row[6]){
-                item.image= image.configure(rels[i].row[6],options);
-                item.image.id = rels[i].row[7];
+            if (rels[i].row[4]){
+                item.image= image.configure(rels[i].row[4],options);
+                item.image.id = rels[i].row[5];
             }
             
             let compact = item.image ? item.image.thumb : (item.label || item.id);
@@ -119,21 +127,31 @@ module.exports = function(config){
             else {
                 //add if not present
                 if (itemKeys[key].indexOf(item.id) === -1){
-                    
                     if (options.format==="compact"){
                             relationships[key].push(compact);
                     }
                     else{
                             relationships[key].items.push(item);
                     }
-                
-                    
                     itemKeys[key].push(item.id);
                 }
             }
         }
 
-        return relationships;
+       // return relationships;
+        
+        
+        //convert to array
+        var arr = [];
+        for (key in relationships){
+            let r = relationships[key];
+            r.key=key;
+            arr.push(r);
+        }
+        return arr;
+        
+        
+        
     };
     
     //options
@@ -142,8 +160,10 @@ module.exports = function(config){
     {
         return cypher.executeStatements(statements).then(function (results) {
 
-                var outbound = build(results[0].data,"out",options);
-                var inbound = build(results[1].data,"in",options);
+                var inbound,outbound = build(results[0].data,"out",options);
+                if (results.length > 1 && results[1].data && results[1].data.length){
+                    inbound = build(results[1].data,"in",options);
+                }
                 var relationships = _.extend(outbound,inbound);
                 return relationships;
             });
@@ -387,24 +407,35 @@ difference:function(n){
             var match = utils.getMatch(id);
             var statements = [];
             //out 
-            statements.push(cypher.buildStatement(match + " with n match (n) - [r] -> (m)  return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label", "row"));
+            statements.push(cypher.buildStatement(match + " with n match (n) - [r] -> (m)  return m,ID(m), ID(r),TYPE(r)", "row"));
             //in
-            statements.push(cypher.buildStatement(match + " with n match (n) <- [r] - (m)  return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label", "row"));
+            statements.push(cypher.buildStatement(match + " with n match (n) <- [r] - (m)  return n,ID(m),ID(r),TYPE(r)", "row"));
             return relationships(statements,options);
         }
         ,
         //Relationships with 'Label' (non picture) nodes
         //Aggregated by [predicate + direction ('->' or '-<')] which form the object keys
-        //size is compact,default,detailed
+        //options.format is compact,default
         conceptual: function (id,options) {
 
             var match = utils.getMatch(id);
             var statements = [];
             //out 
-            statements.push(cypher.buildStatement(match + " with n match (n) - [r] -> (m:Label)  return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label", "row"));
+            statements.push(cypher.buildStatement(match + " with n match (n) - [r] -> (m:Label)  return m,ID(m),ID(r),TYPE(r)", "row"));
             //in
-            statements.push(cypher.buildStatement(match + " with n match (n) <- [r] - (m:Label)  where  NOT(n <-[:BY]-(m))    return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label", "row"));
+            statements.push(cypher.buildStatement(match + " with n match (n) <- [r] - (m:Label)  where  NOT(n <-[:BY]-(m))    return m,ID(m),ID(r),TYPE(r)", "row"));
             return relationships(statements,options);
+    }
+       ,
+        //Relationships with 'Property'  nodes
+       //format is default
+        property: function (id) {
+
+            var match = utils.getMatch(id);
+            var statements = [];
+            //out only
+            statements.push(cypher.buildStatement(match + " with n match (n) - [r:PROPERTY] -> (m:Property)  return m,ID(m),ID(r),TYPE(r)", "row"));
+            return relationships(statements,{format:"verbose"});
     }
         ,
         //Relationships with 'Picture' nodes
@@ -422,9 +453,9 @@ difference:function(n){
                 var match = utils.getMatch(id1);
                 var statements = [];
                 //out 
-                statements.push(cypher.buildStatement(match + " with n match (n) - [r] -> (m:Picture) - [:IMAGE] -> (i:Image:Main)  return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label,i,ID(i),LABELS(i)", "row"));
+                statements.push(cypher.buildStatement(match + " with n match (n) - [r] -> (m:Picture) - [:IMAGE] -> (i:Image:Main)  return m,ID(m),ID(r),TYPE(r),i,ID(i),LABELS(i)", "row"));
                 //in
-                statements.push(cypher.buildStatement(match + " with n match (n) <- [r] - (m:Picture)- [:IMAGE] -> (i:Image:Main)  return ID(m), m.Lookup,m.Type,ID(r),TYPE(r),m.Label,i,ID(i),LABELS(i)", "row"));
+                statements.push(cypher.buildStatement(match + " with n match (n) <- [r] - (m:Picture)- [:IMAGE] -> (i:Image:Main)  return m,ID(m), ID(r),TYPE(r),i,ID(i),LABELS(i)", "row"));
                 return relationships(statements,options);
             }
            
@@ -437,7 +468,7 @@ difference:function(n){
             var q = utils.getMatch(id);
 
             q += " with n match (n) <- [:BY] - (c1:Picture) - [] - (c2:Picture) - [:BY] -> (m)";
-            q += " return ID(m), m.Lookup,m.Type,-1,'inferred',m.Label";
+            q += " return m,ID(m),-1,'inferred',m.Label";
             
             return cypher.executeQuery(q).then(function(data){
                 return build(data,options);

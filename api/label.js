@@ -13,6 +13,9 @@ module.exports = function(config){
 
 var that = {
 
+list:{
+    
+
     //Alternatively i could query the actual labels and merge them into a distinct array
     distinct: function (labels) {
       
@@ -41,11 +44,12 @@ var that = {
         });
 
     }
+
     ,
     //if the node has any values in its labels array that match picture or person types
     //the corresponding parent label is added to the array
     //The array is uniqued before returning
-    getParents: function (labels) {
+    parents: function (labels) {
         var out = [];
         if (labels && labels.length)
         {
@@ -58,9 +62,10 @@ var that = {
         }
         return labels;
     }
+}
     ,
     addParents:function(n){
-        n.labels = _.uniq(n.labels.concat(that.getParents(n.labels)));
+        n.labels = _.uniq(n.labels.concat(that.list.parents(n.labels)));
         return n;
     }
     

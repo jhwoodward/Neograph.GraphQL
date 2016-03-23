@@ -43,6 +43,17 @@ module.exports = function(config,router){
            });
     });
     
+    router.route('/relationships/property/:id').get(function (req, res) {
+
+        relationship.list.property(req.params.id,req.query)
+          .then(function(data){
+               res.status(200).json(data);
+            })
+          .catch(function (err) {
+               res.status(500).json({error:err});
+           });
+    });
+    
      router.route('/relationships/inferred/:id').get(function (req, res) {
 
         relationship.list.inferred(req.params.id,req.query)

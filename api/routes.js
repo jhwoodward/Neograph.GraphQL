@@ -1,9 +1,8 @@
-
 module.exports = function(config){
     
    "use strict";
     
-   var router = require('express').Router();
+   var router = require("express").Router();
      
    require("./node.routes")(config,router);
    require("./picture.routes")(config,router);
@@ -12,10 +11,15 @@ module.exports = function(config){
    require("./search.routes")(config,router);
    require("./user.routes")(config,router);
    require("./multiple.routes")(config,router);
-   require("./test.routes")(config,router);
-
-   //miscellaneous routes
+   require("./multiple.routes")(config,router);
    
+   
+   
+   
+   var type=require("./type")(config);
+   var label=require("./label")(config);
+   var predicate=require("./predicate")(config);
+
     router.route('/predicates').get(function (req, res) {
         predicate.refreshList().then(function (predicates) {
             res.status(200).json(predicates);
@@ -28,8 +32,8 @@ module.exports = function(config){
         });
     });
 
-    router.route('/utils/distinctLabels').post(function(req,res){
-        utils.distinctLabels(req.body.labels)    
+    router.route('/labels/distinct').post(function(req,res){
+        label.list.distinct(req.body.labels)    
         .then(function(data){
                res.status(200).json(data);
             })

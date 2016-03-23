@@ -2,11 +2,11 @@
 
 var assert = require('assert');
 var should = require('should');
-var config = require("../api-config");
+var config = require("../api.config");
     
-var node = require('./node')(config);
-var utils = require('./utils')(config);
-var testData = require("../test/test.data")(config);
+var node = require('../api/node')(config);
+var utils = require('../api/utils')(config);
+var testData = require("./test.data")(config);
 var _=require("lodash");
 var changeCase=require("change-case");
 

@@ -15,7 +15,7 @@ app.use(require('./headers'));
 
 var port = process.env.PORT || config.host.port;       
 
-var apiconfig = require('./api-config');
+var apiconfig = require('./api.config');
 
 /*apiconfig should look like this:
 {  
@@ -32,8 +32,12 @@ var apiconfig = require('./api-config');
 }
 */
 
+//CAN I USE PROCESS.ENV. FOR CONFIG ??
+
 //configure routes
-app.use(config.host.root, require('./api/app')(apiconfig));
+app.use(config.host.root, require('./api/routes')(apiconfig));
+
+
 
 app.listen(port);
-console.log('Magic happens on port ' + port);
+console.log('Listening on port ' + port);
