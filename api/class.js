@@ -20,21 +20,12 @@ var that = {
         return that.list[label] !== undefined;
     }
     ,
-    getSchema:function(id){//return list with full schema
+    getSchema:function(n){
         
-        var q = "match (n:Class {Lookup:{id}}) - [:EXTENDS*] -> (b:Class)-[:PROPERTY]->(p:Property) return p";
-        return cypher.executeQuery(q,null,{id:id})
-            .then(function (data) {
-                
-                    var out = {};
-                
-                    for (let i = 0; i < data.length; i++) {
-                        
-                        var p = utils.camelCase(data[i].row[0]);
-                        out[p.lookup] = p;
-                    }
-                    return out;
-            });     
+    
+     //   return that.list[n.]
+    
+    
     }
     ,
     refreshList: function () {
@@ -47,9 +38,14 @@ var that = {
         var self = "match (n:Class) optional match n - [r:PROPERTY] -> (p:Property) return n,collect(r),collect(p),labels(n)";
         var parents = "match (n:Class) - [:EXTENDS*] -> (b:Class)-[r:PROPERTY]->(p:Property) return n,collect(r),collect(p),labels(n)";
 
-        var rels = "match (n:Class) -[r] -> (c:Class)  where type(r)<>'EXTENDS' and type(r) <> 'PROPERTY' return n,collect(type(r)),collect(c)";
+        //relationship definitions
+        var relsOut = "match (n:Class) -[r] -> (c:Class)  where type(r)<>'EXTENDS' and type(r)<>'HAS' return n,collect(type(r)),collect(c)";
+        var relsIn = "match (n:Class) <-[r] - (c:Class)  where type(r)<>'EXTENDS' and type(r)<>'HAS' return n,collect(type(r)),collect(c)";
         
-        return cypher.executeStatements([self,parents,rels])
+        //inherit HAS relationships
+        var has = "match (n:Class) - [:EXTENDS*] -> (b:Class) - [:HAS] -> (d:Class) return n,collect(d)";
+        
+        return cypher.executeStatements([self,parents,relsOut,relsIn,has])
             .then(function (results) {
                 
             var self =    results[0].data;
@@ -62,7 +58,7 @@ var that = {
 
                 var d = self[i];
                 var t = utils.camelCase(d.row[0]);
-                var parent = parents.find(function(item){return item.row[0].Lookup === d.row[0].Lookup});
+                var parent = parents.find(function(item){return item.row[0].Lookup === d.row[0].Lookup;});
             
      
                 var labels = d.row[3];
@@ -108,41 +104,67 @@ var that = {
                         
                         type.props[propName] = prop;
                     }  
-                    
-                    
+
                     //only add if it has props - otherwise it has no use
                     if (type.props){
                         types[t.lookup] = type;
                     }
-                    
-                 
-                    
                 } 
                 else {
                     console.warn("Type without lookup (id:" + d.row[0] + ")");
                 }
             }
             
-            let relTypes = results[2].data;
-          
+            let relTypesOut = results[2].data;
+            let relTypesIn = results[3].data;
+            let has = results[4].data;
+            
+            function findRel(t,relTypes){
+                return relTypes.find(function(item){
+                    return t.lookup === item.row[0].Lookup;
+                  });
+            }
+            
             for (let tkey in types){
                 let t = types[tkey];
                 t.reltypes={};
-                 let rel = relTypes.find(function(item){return t.lookup === item.row[0].Lookup});
-                 if (rel){
-                       for (let x = 0; x < rel.row[1].length;x++){
-                           let relType=rel.row[1][x];
-                           t.reltypes[relType]=rel.row[2][x].Lookup;
+                
+                 let relOut = findRel(t,relTypesOut);
+                 if (relOut){
+
+                       for (let x = 0; x < relOut.row[1].length;x++){
+                           let pred=predicate.list[relOut.row[1][x]];
+                   
+                           t.reltypes[pred.lookup]={direction:"out",predicate:pred,class:relOut.row[2][x].Lookup};
+                        //   console.log(t.lookup);
+                        //   console.log(pred);
+                       }
+                 }
+                 let relIn = findRel(t,relTypesIn);
+                 if (relIn){
+                       for (let x = 0; x < relIn.row[1].length;x++){
+                           //get reversed predicate
+                           let pred=predicate.list[relIn.row[1][x]];
+                           if (!pred){
+                               console.log(relIn.row[1][x]);
+                           }
+         
+                           t.reltypes[pred.reverse]={direction:"in",predicate:pred,class:relIn.row[2][x].Lookup};
                        }
                  }
                  
+                 let relHas = findRel(t,has);
+                 if (relHas){
+                       for (let x = 0; x < relHas.row[1].length;x++){
+                           let pred=predicate.list["HAS"];
+                           pred.direction="out";
+                           let relType= changeCase.camelCase(relHas.row[1][x].Lookup)+"s";//"HAS";
+                           
+                           t.reltypes[relType]={direction:"out",predicate:pred,class:relHas.row[1][x].Lookup};
+                       }
+                 }
             }
-            
-            
-            
-            
-            
-        
+
             that.list = types;
             return types;
         });

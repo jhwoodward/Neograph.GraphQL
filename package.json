@@ -12,7 +12,6 @@
     "lint": "jshint --exclude ./node_modules,./test .",
     "prestart": "npm run lint",
     "start": "node app.rest.js",
-    "pregraphql":"node ./api/graphql/generate.js",
     "graphql": "babel-node --presets es2015 app.graphql.js"
   },
   "jshintConfig": {

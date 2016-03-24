@@ -24,27 +24,6 @@ let pictureList = new GraphQLObjectType({
 });
 
 
-// Define our schema, with one top level field, named `user`, that
-// takes an `id` argument and returns the User with that ID.
-/*
-var schema = new graphql.GraphQLSchema({
-  query: new graphql.GraphQLObjectType({
-    name: 'Query',
-    fields: {
-      user: {
-        type: userType,
-        args: {
-          id: { type: graphql.GraphQLString }
-        },
-        resolve: function (_, args) {
-          return data[args.id];
-        }
-      }
-    }
-  })
-});
-*/
-
 let schema = new GraphQLSchema({
    query:new GraphQLObjectType({
         name: 'Query',

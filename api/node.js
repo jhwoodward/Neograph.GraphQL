@@ -13,6 +13,7 @@
     var graph = require("./graph")(config);
     var relationship = require("./relationship")(config);
     var changeCase = require("change-case");
+     var predicate = require("./predicate")(config);
   
 //read
 //data[0].row 
@@ -67,9 +68,10 @@ function getNodeByLabel(label) {
 //read
 function addRelationships(n) {
    
-    return relationship.list.all(n).then(function(r){
+    return relationship.list.conceptual(n).then(function(r){
         
         if (Object.keys(r).length){
+            /*
             for (var key in r){
                 if (r[key].predicate.direction==="in"){
                     n[r[key].predicate.reverse] = r[key].items;
@@ -78,7 +80,8 @@ function addRelationships(n) {
                     n[r[key].predicate.lookup] = r[key].items;
                 }
             }
-           // n.relationships=r;
+            */
+            n.relationships=r;
         }
         return n;
     });
@@ -215,7 +218,7 @@ var that = {
     //Get node by (internal ID) or label
     //Add relationships
     getWithRels: function (id) {
-        console.log('xfth');
+
         var parsed = utils.parseIdOrLabel(id);
         console.log(parsed);
         if (parsed.id){
@@ -228,6 +231,73 @@ var that = {
             .then(addRelationships);
         }
 
+    }
+    ,
+    getForGraphQL:function(id,c){
+     
+/*
+             var q = utils.getMatch(id);
+             
+             q += "with n match (n)-[:INSTANCE_OF]->(class:Class)-[r]-(c:Class) ";
+             q += "WHERE TYPE(r)<>'EXTENDS' ";
+             q += " with n,r,c match n-[q]-a-[:INSTANCE_OF]->c where type(r) = type(q) ";
+             q += " return n,ID(n),labels(n),type(r),collect(a) ";
+             
+            //returns relationships with 'has' properties eg picture has image
+            //but returns nothing if there a no has relationships
+
+            match (n:Label {Lookup:'Delacroix'})-[:INSTANCE_OF]->(class:Class)-[r]-(c:Class) 
+            WHERE TYPE(r)<>'EXTENDS' 
+            with n,r,c match n-[q]-a-[:INSTANCE_OF]->c where type(r) = type(q) 
+            with n,a,c,r
+            match c - [:EXTENDS*] -> (b:Class) - [:HAS] -> (d:Class) 
+            with n,a,r
+            match (a) -[]->(i)-[:INSTANCE_OF]->d 
+            return type(r),collect(a),collect(i)
+*/
+            
+
+             var statements = [];
+             for (var key in c.reltypes){
+                if (c.reltypes[key].direction === "out"){
+                    statements.push (utils.getMatch(id) + " with n match n - [:" + c.reltypes[key].predicate.lookup + "] -> m return n,collect(m) ");
+                }
+                else{
+                    statements.push (utils.getMatch(id) + " with n match n <- [:" + c.reltypes[key].predicate.lookup + "] - m return n,collect(m) ");
+                }
+             }
+             
+             //todo: include 'has' properties eg painting images
+
+            var out = {};
+            return cypher.executeStatements(statements).then(function(results){
+
+           
+                let n = utils.camelCase(results[0].data[0].row[0]);
+
+                let counter=0;
+                for (var key in c.reltypes){
+                      
+                    let data = results[counter].data;
+                      
+                    data.forEach(function(d){
+                        n[key]= d.row[1].map(function(e){
+                            return utils.camelCase(e);
+                        });
+                    });
+                      
+                   counter +=1;
+                }
+              
+          
+               
+              return n;
+                
+                
+            });
+          
+                
+       
     }
     ,
     //returns a new property object for the node

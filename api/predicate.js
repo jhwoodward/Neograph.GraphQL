@@ -66,8 +66,6 @@ module.exports = function(config)
     };
 
 
-//cached list of predicates
-var list = {};
 
 var that = {
     init:function(){
@@ -75,9 +73,10 @@ var that = {
         return that;
     }
     ,
+    //can pass in active or reverse INFLUENCES OR INFLUENCED_BY
     get: function(lookup){
 
-        var p = list[lookup];
+        var p = that.list[lookup];
         
         if (!p)
         {
@@ -98,7 +97,7 @@ var that = {
 
     ,
      //object containing all predicates keyed on Lookup
-    list: list
+    list: {}
     ,
     refreshList: function () {//consider creating lookup nodes for relationship types so that i can store properties for them
         
@@ -127,7 +126,7 @@ var that = {
 
             }
 
-            list = predicates;
+            that.list = predicates;
             return predicates;
 
         });

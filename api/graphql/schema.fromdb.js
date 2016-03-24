@@ -58,11 +58,11 @@ let generateFields = () => {
                         name:tkey,
                         description:t.description,
                         fields:() => {
-                            let p = makeGraphQLprops(t.props)
+                            let p = makeGraphQLprops(t.props);
                           
                             for (let relTypeKey in t.reltypes)
                             {
-                                let itemtype = t.reltypes[relTypeKey];
+                                let itemtype = t.reltypes[relTypeKey].class;
                                 let objType = fields[itemtype].type; 
                                 p[relTypeKey] = {type:new GraphQLList(objType)};
                             }
@@ -72,31 +72,17 @@ let generateFields = () => {
                     }),
                  args:{id:{type:GraphQLString}} ,
                  resolve:function(_,args){
-                     return node.getWithRels(args.id);
+                     return node.getForGraphQL(args.id,t);
                  }  
             };
             
         }
         
-     
-        
-        console.log('EXIT');
         return fields;
         
-    })
+    });
 
-
-
-    
- 
-      
-     
-    
-}
-
-
-
-
+};
 
 var out = {
 
@@ -116,11 +102,9 @@ var out = {
                 graphiql:true
             }));
                 
-        })
-       
-                
+        });   
     }
-}
+};
 
 export default out;
 
