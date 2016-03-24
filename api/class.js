@@ -35,135 +35,97 @@ var that = {
     buildSchema:function(predicates){
         
         
-        var self = "match (n:Class) optional match n - [r:PROPERTY] -> (p:Property) return n,collect(r),collect(p),labels(n)";
-        var parents = "match (n:Class) - [:EXTENDS*] -> (b:Class)-[r:PROPERTY]->(p:Property) return n,collect(r),collect(p),labels(n)";
+        var props = "match (n:Class) optional match n - [r:PROPERTY] -> (p:Property) return n,collect(r),collect(p)";
+        props += "union match (n:Class) - [:EXTENDS*] -> (b:Class)-[r:PROPERTY]->(p:Property) return n,collect(r),collect(p)";
 
+/*
         //relationship definitions
         var relsOut = "match (n:Class) -[r] -> (c:Class)  where type(r)<>'EXTENDS' and type(r)<>'HAS' return n,collect(type(r)),collect(c)";
         var relsIn = "match (n:Class) <-[r] - (c:Class)  where type(r)<>'EXTENDS' and type(r)<>'HAS' return n,collect(type(r)),collect(c)";
         
         //inherit HAS relationships
         var has = "match (n:Class) - [:EXTENDS*] -> (b:Class) - [:HAS] -> (d:Class) return n,collect(d)";
+        */
         
-        return cypher.executeStatements([self,parents,relsOut,relsIn,has])
+        var relTypes = "match (n:Class ) -[r] -> (c:Class)  where type(r)<>'EXTENDS'  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup)";
+        relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) - [r] -> (c:Class)  where type(r)<>'EXTENDS'   return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup)";
+        relTypes += " union match (n:Class ) <-[r] - (c:Class)  where type(r)<>'EXTENDS'  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup)";
+        relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) <- [r] - (c:Class)  where type(r)<>'EXTENDS'   return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup)";
+
+
+        
+        return cypher.executeStatements([props,relTypes])
             .then(function (results) {
                 
-            var self =    results[0].data;
-            var parents = results[1].data;
-          
-
+            var propData = results[0].data;
             let types = {};
             
-            for (let i = 0; i < self.length; i++) {
+            for (let i = 0; i < propData.length; i++) {
 
-                var d = self[i];
-                var t = utils.camelCase(d.row[0]);
-                var parent = parents.find(function(item){return item.row[0].Lookup === d.row[0].Lookup;});
-            
-     
-                var labels = d.row[3];
-                
-                if (t.lookup) {
-                    var typeName = changeCase.camelCase(t.lookup);
-            
-                    var type = {
-                        lookup:t.lookup,
-                        description: t.description,
-                        isSystem: labels.indexOf("SystemInfo") > -1,
-                        isGlobal:labels.indexOf("Global") > -1
-                        };
-                    
-                    if (t.systemInfo){
-                        type.systemInfo = t.systemInfo;
-                    }
-                    
-                    //combine own props with parent's
-                    var rels = d.row[1];//array;//relationship has metaself such as 'Required' true/false
-                 
-                    var props = d.row[2];//array
-                    
-                    if (parent && parent.row[1]){
-                        rels = rels.concat(parent.row[1]);
-                    }
-                    if (parent && parent.row[2]){
-                        props = props.concat(parent.row[2]);
-                    }
-                    
-                    for (let j = 0; j < props.length; j++) {
-                        
-                        var p = utils.camelCase(props[j]);
-                        var propName = changeCase.camelCase(p.lookup);
-                        var rel = utils.camelCase(rels[j]);
-                        var prop = {
-                            name:propName,
-                            required: (rel && rel.required) || false,
-                            type:p.type || "string",
-                        };
-                        
-                        if (!type.props) type.props = {};
-                        
-                        type.props[propName] = prop;
-                    }  
+                var pd = propData[i];
+                var type = utils.camelCase(pd.row[0]);
 
-                    //only add if it has props - otherwise it has no use
-                    if (type.props){
-                        types[t.lookup] = type;
-                    }
-                } 
-                else {
-                    console.warn("Type without lookup (id:" + d.row[0] + ")");
+                if (!type.lookup) {
+                    console.warn("Type without lookup (id:" + pd.row[0] + ")");
+                    continue;
                 }
+
+                type.props={};
+                var props = pd.row[2];//array
+                for (let j = 0; j < props.length; j++) {
+                    type.props[props[j].Lookup] = {
+                        name:changeCase.camelCase(props[j].Lookup),
+                        required: (pd.row[1][j] && pd.row[1][j].Required) || false,
+                        type:props[j].Type || "string",
+                    };
+                }  
+
+                //only add if it has props - otherwise it has no use
+                if (Object.keys(type.props).length){
+                    types[type.lookup] = type;
+                }
+              
             }
             
-            let relTypesOut = results[2].data;
-            let relTypesIn = results[3].data;
-            let has = results[4].data;
-            
-            function findRel(t,relTypes){
-                return relTypes.find(function(item){
-                    return t.lookup === item.row[0].Lookup;
-                  });
-            }
+            let relTypes = results[1].data;
+
+         
             
             for (let tkey in types){
-                let t = types[tkey];
-                t.reltypes={};
                 
-                 let relOut = findRel(t,relTypesOut);
-                 if (relOut){
-
-                       for (let x = 0; x < relOut.row[1].length;x++){
-                           let pred=predicate.list[relOut.row[1][x]];
-                   
-                           t.reltypes[pred.lookup]={direction:"out",predicate:pred,class:relOut.row[2][x].Lookup};
-                        //   console.log(t.lookup);
-                        //   console.log(pred);
-                       }
-                 }
-                 let relIn = findRel(t,relTypesIn);
-                 if (relIn){
-                       for (let x = 0; x < relIn.row[1].length;x++){
-                           //get reversed predicate
-                           let pred=predicate.list[relIn.row[1][x]];
-                           if (!pred){
-                               console.log(relIn.row[1][x]);
-                           }
-         
-                           t.reltypes[pred.reverse]={direction:"in",predicate:pred,class:relIn.row[2][x].Lookup};
-                       }
-                 }
+       console.log('--------------------------');
+       console.log(tkey);
+        console.log('--------------------------');
+       
+                types[tkey].reltypes={};
+                
+                 let rels = relTypes.filter((item)=>{
+                     return types[tkey].lookup === item.row[0];
+                 });
                  
-                 let relHas = findRel(t,has);
-                 if (relHas){
-                       for (let x = 0; x < relHas.row[1].length;x++){
-                           let pred=predicate.list["HAS"];
-                           pred.direction="out";
-                           let relType= changeCase.camelCase(relHas.row[1][x].Lookup)+"s";//"HAS";
-                           
-                           t.reltypes[relType]={direction:"out",predicate:pred,class:relHas.row[1][x].Lookup};
-                       }
-                 }
-            }
+                
+
+                 rels.forEach((item)=>{
+                     
+                    let predkeys = item.row[1];
+                    
+                    for (let x = 0; x < predkeys.length;x++){
+                        let predkey = predkeys[x];
+                      
+                        types[tkey].reltypes[predkey]={
+                                predicate:predicate.list[predkey],
+                                direction: item.row[2],
+                                class: item.row[3][x]
+                            };
+                       
+                    }
+                    
+                  console.log(types[tkey].reltypes);
+                    
+                });
+             }
+             
+            
 
             that.list = types;
             return types;
