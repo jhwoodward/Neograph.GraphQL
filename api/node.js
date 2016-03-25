@@ -233,6 +233,34 @@ var that = {
 
     }
     ,
+    getGraph2:function(obj,reltype){
+   
+        let q = " match (n:" + obj.class + ")";
+        let r =  reltype.predicate.lookup.toUpperCase();
+        
+        if (reltype.direction === "out"){
+            q += " - [:" + r + "] -> " 
+        }
+        else{
+            q += " <- [:" + r + "] - ";
+        }
+        q += " (m:" + reltype.class + ") ";
+       // q += " where n.Lookup='" + obj.lookup + "' return m ";
+        q += " where ID(n)=" + obj.id + " return m,ID(m) ";
+          
+    
+        //todo: work out efficient way to get HAS relationships - images of pictures
+
+        return cypher.executeQuery(q).then(function(data){
+            return  data.map(function(d){
+                    let n = utils.camelCase(d.row[0]);
+                    n.id=d.row[1];
+                    return n;
+                });
+        });
+    }
+    ,
+    
     getForGraphQL:function(id,c){
      
 /*
@@ -259,14 +287,17 @@ var that = {
 
              var statements = [];
              for (var key in c.reltypes){
+                 
+                 let r = c.reltypes[key].predicate.lookup.toUpperCase();
+                 
                 if (c.reltypes[key].direction === "out"){
-                    statements.push (utils.getMatch(id) + " with n match n - [:" + c.reltypes[key].predicate.lookup + "] -> m return n,collect(m) ");
+                    statements.push (utils.getMatch(id) + " with n match n - [:" + r + "] -> m return n,collect(m) ");
                 }
                 else{
-                    statements.push (utils.getMatch(id) + " with n match n <- [:" + c.reltypes[key].predicate.lookup + "] - m return n,collect(m) ");
+                    statements.push (utils.getMatch(id) + " with n match n <- [:" + r + "] - m return n,collect(m) ");
                 }
              }
-             
+             console.log(statements);
              //todo: include 'has' properties eg painting images
 
             var out = {};
@@ -288,9 +319,7 @@ var that = {
                       
                    counter +=1;
                 }
-              
-          
-               
+
               return n;
                 
                 

@@ -64,7 +64,12 @@ let generateFields = () => {
                             {
                                 let itemtype = t.reltypes[relTypeKey].class;
                                 let objType = fields[itemtype].type; 
-                                p[relTypeKey] = {type:new GraphQLList(objType)};
+                                p[relTypeKey] = {
+                                    type:new GraphQLList(objType),
+                                     resolve:function(obj){
+                                            return node.getGraph2(obj,t.reltypes[relTypeKey]);
+                                        }  
+                                    };
                             }
                           
                             return p;
@@ -72,7 +77,7 @@ let generateFields = () => {
                     }),
                  args:{id:{type:GraphQLString}} ,
                  resolve:function(_,args){
-                     return node.getForGraphQL(args.id,t);
+                     return node.get(args.id);
                  }  
             };
             

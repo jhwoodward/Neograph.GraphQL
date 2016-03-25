@@ -57,13 +57,13 @@ var that = {
         return cypher.executeStatements([props,relTypes])
             .then(function (results) {
                 
-            var propData = results[0].data;
+            let propData = results[0].data;
             let types = {};
             
             for (let i = 0; i < propData.length; i++) {
 
-                var pd = propData[i];
-                var type = utils.camelCase(pd.row[0]);
+                let pd = propData[i];
+                let type = utils.camelCase(pd.row[0]);
 
                 if (!type.lookup) {
                     console.warn("Type without lookup (id:" + pd.row[0] + ")");
@@ -71,13 +71,15 @@ var that = {
                 }
 
                 type.props={};
-                var props = pd.row[2];//array
+                let props = pd.row[2];//array
                 for (let j = 0; j < props.length; j++) {
-                    type.props[props[j].Lookup] = {
-                        name:changeCase.camelCase(props[j].Lookup),
+                    let propname = changeCase.camelCase(props[j].Lookup);
+                    type.props[propname] = {
+                        name:propname,
                         required: (pd.row[1][j] && pd.row[1][j].Required) || false,
                         type:props[j].Type || "string",
                     };
+                     type.props["id"] ={name:"id",required:true,type:"number"};
                 }  
 
                 //only add if it has props - otherwise it has no use
@@ -88,15 +90,9 @@ var that = {
             }
             
             let relTypes = results[1].data;
-
-         
-            
+ 
             for (let tkey in types){
-                
-       console.log('--------------------------');
-       console.log(tkey);
-        console.log('--------------------------');
-       
+
                 types[tkey].reltypes={};
                 
                  let rels = relTypes.filter((item)=>{
@@ -112,20 +108,20 @@ var that = {
                     for (let x = 0; x < predkeys.length;x++){
                         let predkey = predkeys[x];
                       
-                        types[tkey].reltypes[predkey]={
-                                predicate:predicate.list[predkey],
-                                direction: item.row[2],
+                        let pred = predicate.list[predkey];
+                        let direction = item.row[2];
+                        let k = direction==="in"? pred.reverse.toLowerCase() : predkey.toLowerCase();
+                        types[tkey].reltypes[k]={
+                                predicate:pred,
+                                direction: direction,
                                 class: item.row[3][x]
                             };
-                       
+                            
+                        
+                            
                     }
-                    
-                  console.log(types[tkey].reltypes);
-                    
                 });
              }
-             
-            
 
             that.list = types;
             return types;

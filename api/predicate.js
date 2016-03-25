@@ -111,13 +111,14 @@ var that = {
             for (var i =0; i < data.length; i++) {
                 var d = data[i];
                 
+                let symmetrical = d.row[1].Symmetrical || false;
                  if (d.row[1].Lookup) {
                     predicates[d.row[1].Lookup] = {
                       //  id: d.row[0],
                         lookup: d.row[1].Lookup,
                         force: d.row[1].Force,//Attract or Repel
-                        symmetrical:d.row[1].Symmetrical || false,
-                        reverse:d.row[1].Reverse 
+                        symmetrical:symmetrical,
+                        reverse: symmetrical ? d.row[1].Lookup : d.row[1].Reverse 
                     };
                 }
                 else {
