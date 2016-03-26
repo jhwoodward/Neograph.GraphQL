@@ -46,91 +46,64 @@ var that = {
         //inherit HAS relationships
         var has = "match (n:Class) - [:EXTENDS*] -> (b:Class) - [:HAS] -> (d:Class) return n,collect(d)";
         */
-        
-        var relTypes = "match (n:Class ) -[r] -> (c:Class)  where type(r)<>'EXTENDS'  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup)";
-        relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) - [r] -> (c:Class)  where type(r)<>'EXTENDS'   return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup)";
-        relTypes += " union match (n:Class ) <-[r] - (c:Class)  where type(r)<>'EXTENDS'  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup)";
-        relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) <- [r] - (c:Class)  where type(r)<>'EXTENDS'   return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup)";
+
+        let relTypes = "match (n:Class ) -[r] -> (c:Class)  where type(r)<>'EXTENDS'";
+        relTypes += "  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)";
+        relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) - [r] -> (c:Class)  where type(r)<>'EXTENDS' ";
+        relTypes += "  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)";
+        relTypes += " union match (n:Class ) <-[r] - (c:Class)  where type(r)<>'EXTENDS' ";
+        relTypes += "  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)";
+        relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) <- [r] - (c:Class)  where type(r)<>'EXTENDS' "; 
+        relTypes += "  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)";
 
 
         
         return cypher.executeStatements([props,relTypes])
             .then(function (results) {
-                
-            let propData = results[0].data;
+
             let types = {};
             
-            for (let i = 0; i < propData.length; i++) {
-
-                let pd = propData[i];
+            results[0].data.forEach((pd)=>{
+                
                 let type = utils.camelCase(pd.row[0]);
 
                 if (!type.lookup) {
                     console.warn("Type without lookup (id:" + pd.row[0] + ")");
-                    continue;
+                    return;
                 }
 
-                type.props={};
-                let props = pd.row[2];//array
-                for (let j = 0; j < props.length; j++) {
-                    let propname = changeCase.camelCase(props[j].Lookup);
-                    type.props[propname] = {
-                        name:propname,
-                        required: (pd.row[1][j] && pd.row[1][j].Required) || false,
-                        type:props[j].Type || "string",
-                    };
-                     type.props["id"] ={name:"id",required:true,type:"number"};
-                }  
+                let props = pd.row[2].map(e=>{return {name:changeCase.camelCase(e.Lookup),type:e.Type || "string"}});
+                let propsMetadata = pd.row[1].map(e=>{return {required:e.Required || false}});
+                type.props = _.keyBy(_.merge(props,propsMetadata),'name');
+
+
+                type.reltypes={};
+                let rels = results[1].data.filter((item)=>{return type.lookup === item.row[0];});
+                rels.forEach(e=>{
+                    let pred = e.row[1].map(p=>{return{predicate:predicate.list[p]}});
+                    let dir = _.fill(Array(pred.length),{direction:e.row[2]});
+                    let cls = e.row[3].map(c=>{return{class:c}});
+                    let nolazy = e.row[4].map(z =>{return {nolazy:z.nolazy || false}});
+                    let reltypes = _.keyBy(_.merge(pred,dir,cls,nolazy)
+                                    ,function(r){
+                                        return r.direction==="in"? r.predicate.reverse.toLowerCase() : r.predicate.lookup.toLowerCase();
+                                    });
+                    
+                    type.reltypes = _.assignIn(type.reltypes,reltypes);
+                });
 
                 //only add if it has props - otherwise it has no use
                 if (Object.keys(type.props).length){
                     types[type.lookup] = type;
                 }
-              
-            }
-            
-            let relTypes = results[1].data;
- 
-            for (let tkey in types){
-
-                types[tkey].reltypes={};
-                
-                 let rels = relTypes.filter((item)=>{
-                     return types[tkey].lookup === item.row[0];
-                 });
-                 
-                
-
-                 rels.forEach((item)=>{
-                     
-                    let predkeys = item.row[1];
-                    
-                    for (let x = 0; x < predkeys.length;x++){
-                        let predkey = predkeys[x];
-                      
-                        let pred = predicate.list[predkey];
-                        let direction = item.row[2];
-                        let k = direction==="in"? pred.reverse.toLowerCase() : predkey.toLowerCase();
-                        types[tkey].reltypes[k]={
-                                predicate:pred,
-                                direction: direction,
-                                class: item.row[3][x]
-                            };
-                            
-                        
-                            
-                    }
-                });
-             }
+            })
 
             that.list = types;
             return types;
         });
-        
     }
     ,
     isSystemInfo: function (label) {
-        
         return label == "Global" || label == "Type" || label == "Label" || label == "SystemInfo";
     },
     //should be in the ui

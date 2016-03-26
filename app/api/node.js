@@ -233,28 +233,91 @@ var that = {
 
     }
     ,
-    getGraph2:function(obj,reltype){
+    getRelatedItems:function(obj,reltype,reltypes,classDefs){
    
-        let q = " match (n:" + obj.class + ")";
+   //CANT GET IT TO WORK SO THAT IMAGES OF PAINTINGS ARE NOT LAZY LOADED (LOADED WITH THE PAINTING)
+   //AND ALSO IN ANOTHER QUERY STILL GET IMAGE.IMAGE_OF .. >PAINTING
+   
+     //find out if class has any nolazy reltypes that need to be loaded with it
+     let nolazy;
+     _.forOwn(reltypes,r=>{
+            _.forOwn(classDefs[r.class].reltypes,r2=>{
+                  if (r2.nolazy ) nolazy = r2;
+            })
+        });
+   
+      
+ 
+      /*
+        //nolazy is only respected for outbound relationships
+       // if (reltype.direction === 'out'){
+                for (let k in reltypes){
+                let r = reltypes[k];
+              //  if (r.direction==="out")
+             //   {
+                    for (let j in classDefs[r.class].reltypes)
+                {
+                    let r2 = classDefs[r.class].reltypes[j];
+                    if (r2.nolazy )
+                    {
+                        nolazy = r2;
+                    }
+                }
+              //  }
+                
+            }
+      
+            
+     //   }
+        */
+        
+        let q;
+        if (obj.class){//not sure why but no class is being set for images
+            q  = " match (n:" + obj.class + ")";
+        }
+        else{
+             q  = " match (n)";
+        }
+       
         let r =  reltype.predicate.lookup.toUpperCase();
         
         if (reltype.direction === "out"){
-            q += " - [:" + r + "] -> " 
+            q += " - [:" + r + "] -> (m:" + reltype.class + ") ";
+         
         }
         else{
-            q += " <- [:" + r + "] - ";
+            q += " <- [:" + r + "] - (m:" + reltype.class + ") ";
         }
-        q += " (m:" + reltype.class + ") ";
+        
+        //not sure if we need to respect the direction of the nolazy ?
+        if (nolazy){
+            q+= " - [:" + nolazy.predicate.lookup + "] -> (nz:" + nolazy.class + ") ";
+        }
+
        // q += " where n.Lookup='" + obj.lookup + "' return m ";
         q += " where ID(n)=" + obj.id + " return m,ID(m) ";
-          
+        
+        if (nolazy){
+            q+=",collect(nz),collect(ID(nz))";
+        }  
     
-        //todo: work out efficient way to get HAS relationships - images of pictures
+    console.log(q);
+
+        //todo: work out efficient way to get images of pictures
+        //have a rule that always gets images along with pictures (but not other types)
+        //Remove the resolve function for image types if parent is picture
 
         return cypher.executeQuery(q).then(function(data){
             return  data.map(function(d){
                     let n = utils.camelCase(d.row[0]);
                     n.id=d.row[1];
+                    
+                       if (nolazy){
+                           let ids = d.row[3].map(function(e){return {id:e}});
+                           let props = d.row[2].map(function(e){return utils.camelCase(e)})
+                           n[nolazy.predicate.lookup.toLowerCase()] = _.merge(ids,props);
+                       }
+        
                     return n;
                 });
         });

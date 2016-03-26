@@ -19,6 +19,7 @@ var classDef = require('../class')(config);
 
 
 
+
 let makeGraphQLprops = (props) =>{
     
     let out = {};
@@ -60,16 +61,20 @@ let generateFields = () => {
                         fields:() => {
                             let p = makeGraphQLprops(t.props);
                           
-                            for (let relTypeKey in t.reltypes)
+                            for (let reltypekey in t.reltypes)
                             {
-                                let itemtype = t.reltypes[relTypeKey].class;
-                                let objType = fields[itemtype].type; 
-                                p[relTypeKey] = {
-                                    type:new GraphQLList(objType),
-                                     resolve:function(obj){
-                                            return node.getGraph2(obj,t.reltypes[relTypeKey]);
-                                        }  
+                                let reltype = t.reltypes[reltypekey];
+                                let objtype = fields[reltype.class].type; 
+                                p[reltypekey] = {
+                                    type:new GraphQLList(objtype)
                                     };
+                                    
+                                 if (!reltype.nolazy || reltype.direction==='in') {//only respect nolazy for outbound rleationships ? eg enable getting image.image_of..>picture
+                                        p[reltypekey].resolve=function(obj){
+                                        return node.getRelatedItems(obj,reltype,t.reltypes,classDefs);
+                                    }  
+                                 } 
+                                    
                             }
                           
                             return p;

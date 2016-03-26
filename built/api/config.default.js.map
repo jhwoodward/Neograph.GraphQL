@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../app/api/config.default.js"],"names":[],"mappings":";;AAAA,OAAO,OAAP,GAAkB;AACd,WAAM;AACF,cAAM,uBAAN;KADJ;AAGI,WAAM,EAAE,MAAK,eAAL;KAAR;CAJR","file":"config.default.js","sourcesContent":["module.exports =  {\r\n    neo4j:{\r\n        root: \"http://localhost:7474\"\r\n    },\r\n        media:{ root:'http://media/'\r\n    }\r\n};"]}
