@@ -1,3 +1,4 @@
+require('source-map-support').install();
 import express from 'express';
 import schema from './api/graphql/schema.fromdb';
 

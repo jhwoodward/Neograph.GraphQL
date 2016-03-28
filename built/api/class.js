@@ -31,17 +31,8 @@ module.exports = function (config) {
 
         buildSchema: function buildSchema(predicates) {
 
-            var props = "match (n:Class) optional match n - [r:PROPERTY] -> (p:Property) return n,collect(r),collect(p)";
+            let props = "match (n:Class) optional match n - [r:PROPERTY] -> (p:Property) return n,collect(r),collect(p)";
             props += "union match (n:Class) - [:EXTENDS*] -> (b:Class)-[r:PROPERTY]->(p:Property) return n,collect(r),collect(p)";
-
-            /*
-                    //relationship definitions
-                    var relsOut = "match (n:Class) -[r] -> (c:Class)  where type(r)<>'EXTENDS' and type(r)<>'HAS' return n,collect(type(r)),collect(c)";
-                    var relsIn = "match (n:Class) <-[r] - (c:Class)  where type(r)<>'EXTENDS' and type(r)<>'HAS' return n,collect(type(r)),collect(c)";
-                    
-                    //inherit HAS relationships
-                    var has = "match (n:Class) - [:EXTENDS*] -> (b:Class) - [:HAS] -> (d:Class) return n,collect(d)";
-                    */
 
             let relTypes = "match (n:Class ) -[r] -> (c:Class)  where type(r)<>'EXTENDS'";
             relTypes += "  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)";

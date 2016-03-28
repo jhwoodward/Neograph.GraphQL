@@ -10,6 +10,9 @@ var _schema2 = _interopRequireDefault(_schema);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+require('source-map-support').install();
+
+
 let app = (0, _express2.default)();
 
 var config = require('./config');

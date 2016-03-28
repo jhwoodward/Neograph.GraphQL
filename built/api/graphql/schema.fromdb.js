@@ -23,6 +23,18 @@ var config = require('../../api.config.js');
 var picture = require('../picture')(config);
 var node = require('../node')(config);
 var classDef = require('../class')(config);
+let lodash = require("lodash");
+
+let makeGraphQLListArgs = t => {
+
+    let out = makeGraphQLprops(t.props);
+
+    for (let reltypekey in t.reltypes) {
+        out[reltypekey] = { type: _graphql.GraphQLString };
+    }
+
+    return out;
+};
 
 let makeGraphQLprops = props => {
 
@@ -50,41 +62,55 @@ let generateFields = () => {
 
         let _fields = {};
 
-        for (var tkey in classDefs) {
+        lodash.forOwn(classDefs, t => {
 
-            let t = classDefs[tkey];
+            let single = new _graphql.GraphQLObjectType({
+                name: t.lookup,
+                description: t.description,
+                fields: () => {
+                    let p = makeGraphQLprops(t.props);
 
-            _fields[tkey] = {
-                type: new _graphql.GraphQLObjectType({
-                    name: tkey,
-                    description: t.description,
-                    fields: () => {
-                        let p = makeGraphQLprops(t.props);
+                    for (let reltypekey in t.reltypes) {
+                        let reltype = t.reltypes[reltypekey];
+                        let objtype = _fields[reltype.class].type;
+                        p[reltypekey] = {
+                            type: new _graphql.GraphQLList(objtype)
+                        };
 
-                        for (let reltypekey in t.reltypes) {
-                            let reltype = t.reltypes[reltypekey];
-                            let objtype = _fields[reltype.class].type;
-                            p[reltypekey] = {
-                                type: new _graphql.GraphQLList(objtype)
+                        p[reltypekey].args = makeGraphQLListArgs(classDefs[reltype.class]);
+
+                        /*
+                        if (!reltype.nolazy || reltype.direction === 'in') {
+                            //only respect nolazy for outbound rleationships ? eg enable getting image.image_of..>picture
+                            p[reltypekey].resolve = function (obj) {
+                                return node.getRelatedItems(obj, reltype, t.reltypes, classDefs);
                             };
-
-                            if (!reltype.nolazy || reltype.direction === 'in') {
-                                //only respect nolazy for outbound rleationships ? eg enable getting image.image_of..>picture
-                                p[reltypekey].resolve = function (obj) {
-                                    return node.getRelatedItems(obj, reltype, t.reltypes, classDefs);
-                                };
-                            }
                         }
-
-                        return p;
+                        */
                     }
-                }),
-                args: { id: { type: _graphql.GraphQLString } },
-                resolve: function resolve(_, args) {
+
+                    return p;
+                }
+            });
+
+            _fields[t.lookup] = {
+                type: single,
+                args: { lookup: { type: _graphql.GraphQLString } },
+                resolve: function resolve(undefined, args) {
                     return node.get(args.id);
                 }
             };
-        }
+
+            _fields[t.lookup + 's'] = { //t.plural ? -- from db
+                type: new _graphql.GraphQLList(single),
+                args: makeGraphQLListArgs(t),
+                resolve: (source, args, root) => {
+                    let selections = root.fieldASTs[0].selectionSet.selections;
+                    return node.list.search(t, args, selections, classDefs); //.catch((err)=>{throw err})
+                }
+
+            };
+        });
 
         return _fields;
     });

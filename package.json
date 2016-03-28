@@ -10,10 +10,10 @@
   },
   "scripts": {
     "lint": "jshint --exclude ./node_modules,./test .",
-    "prestart": "npm run lint",
+    "prestart2": "npm run lint",
     "watch": "babel app --out-dir built --source-maps --watch",
-    "pregraphql": "babel app --out-dir built --source-maps",
-    "graphql": "node  built/app.graphql.js",
+    "prestart": "babel app --out-dir built --source-maps",
+    "start": "node  built/app.graphql.js",
     "oldgraphql": "babel-node --presets es2015 app.graphql.js"
   },
   "babel": {

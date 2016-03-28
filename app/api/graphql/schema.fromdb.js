@@ -7,17 +7,32 @@ import {
 } from 'graphql';
 
 
+
 import GraphQLHTTP from 'express-graphql';
 import types from './types.js';
 //import picture from '../picture';
 var config = require('../../api.config.js');
 
+
 // import classDefs from './classDefs';
 var picture = require('../picture')(config);
 var node = require('../node')(config);
 var classDef = require('../class')(config);
+let lodash = require("lodash");
 
-
+let makeGraphQLListArgs = (t)=>{
+    
+    let out =  makeGraphQLprops(t.props);
+    
+     for (let reltypekey in t.reltypes)
+    {
+        out[reltypekey]={type:GraphQLString};
+     }
+    
+    return out;
+    
+    
+}
 
 
 let makeGraphQLprops = (props) =>{
@@ -49,44 +64,64 @@ let generateFields = () => {
         
         let fields = {};
            
-        for (var tkey in classDefs){
-            
-            let t = classDefs[tkey];
-
-            fields[tkey]={
-                type:new GraphQLObjectType(
-                    {
-                        name:tkey,
-                        description:t.description,
-                        fields:() => {
-                            let p = makeGraphQLprops(t.props);
-                          
-                            for (let reltypekey in t.reltypes)
-                            {
-                                let reltype = t.reltypes[reltypekey];
-                                let objtype = fields[reltype.class].type; 
-                                p[reltypekey] = {
-                                    type:new GraphQLList(objtype)
-                                    };
-                                    
-                                 if (!reltype.nolazy || reltype.direction==='in') {//only respect nolazy for outbound rleationships ? eg enable getting image.image_of..>picture
-                                        p[reltypekey].resolve=function(obj){
-                                        return node.getRelatedItems(obj,reltype,t.reltypes,classDefs);
-                                    }  
-                                 } 
-                                    
+         lodash.forOwn(classDefs,t=>{
+             
+             let single = new GraphQLObjectType(
+                {
+                    name:t.lookup,
+                    description:t.description,
+                    fields:() => {
+                        let p = makeGraphQLprops(t.props);
+                        
+                        for (let reltypekey in t.reltypes)
+                        {
+                            let reltype = t.reltypes[reltypekey];
+                            let objtype = fields[reltype.class].type;
+                            p[reltypekey] = {
+                                type: new GraphQLList(objtype)
+                            };
+                            
+                            p[reltypekey].args = makeGraphQLListArgs(classDefs[reltype.class]);
+                            
+                            
+                            /*
+                            if (!reltype.nolazy || reltype.direction === 'in') {
+                                //only respect nolazy for outbound rleationships ? eg enable getting image.image_of..>picture
+                                p[reltypekey].resolve = function (obj) {
+                                    return node.getRelatedItems(obj, reltype, t.reltypes, classDefs);
+                                };
                             }
-                          
-                            return p;
+                            */
                         }
-                    }),
-                 args:{id:{type:GraphQLString}} ,
-                 resolve:function(_,args){
-                     return node.get(args.id);
-                 }  
+                        
+                        return p;
+                    }
+                });
+
+
+
+            fields[t.lookup]={
+                type: single,
+                 args:{lookup:{type:GraphQLString}} ,
+                 resolve:function(undefined,args){
+                      return node.get(args.id);
+                 } 
             };
             
-        }
+           
+            fields[t.lookup+'s']={//t.plural ? -- from db
+                type:new GraphQLList(single),
+                 args: makeGraphQLListArgs(t),
+                 resolve: (source, args, root) => {
+                        let selections = root.fieldASTs[0].selectionSet.selections;
+                        return node.list.search(t,args,selections,classDefs);//.catch((err)=>{throw err})
+                 } 
+                 
+                 
+                  
+            };
+            
+        });
         
         return fields;
         

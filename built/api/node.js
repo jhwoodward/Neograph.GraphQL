@@ -276,7 +276,7 @@ module.exports = function (config) {
 
             //not sure if we need to respect the direction of the nolazy ?
             if (nolazy) {
-                q += " - [:" + nolazy.predicate.lookup + "] -> (nz:" + nolazy.class + ") ";
+                q += " - [:" + nolazy.predicate.lookup + "] -> (nz) "; //:" + nolazy.class + ") ";//NOT SURE HOW TO GET CORRCET CLASS FOR NOLAZY
             }
 
             // q += " where n.Lookup='" + obj.lookup + "' return m ";
@@ -505,27 +505,106 @@ module.exports = function (config) {
         },
 
         list: {
-            //returns an array of the labels (not pictures) that have this label
+            //returns an array of nodes that have this label
             labelled: function labelled(label, limit) {
 
-                limit = limit || 50;
-                var q = "match (n:Label:" + changeCase.pascalCase(label) + ") return ID(n),n.Lookup,n.Type,n.Label limit " + limit;
+                limit = limit || 500;
+                var q = "match (n:" + changeCase.pascalCase(label) + ") return ID(n),n limit " + limit;
                 console.log(q);
                 return cypher.executeQuery(q).then(function (data) {
 
                     var labelled = [];
                     for (var i = 0; i < data.length; i++) {
-                        var item = {
-                            id: data[i].row[0],
-                            lookup: data[i].row[1],
-                            type: data[i].row[2],
-                            label: data[i].row[3]
-                        };
+                        let item = utils.camelCase(data[i].row[1]);
+                        item.id = data[i].row[0];
                         labelled.push(item);
                     }
                     console.log(labelled);
                     return labelled;
                 });
+            },
+
+            search: function search(baseType, baseArgs, selections, classDefs) {
+
+                let query = {
+                    type: baseType,
+                    args: {
+                        reltypes: _.omitBy(_.mergeWith(_.clone(baseArgs), _.clone(baseType.reltypes), (arg, reltype) => {
+                            return _.assignIn(reltype, { target: arg });
+                        }), val => !val.target),
+                        props: _.omitBy(_.mergeWith(_.clone(baseArgs), _.clone(baseType.props), (arg, prop) => {
+                            return _.assignIn(prop, { target: arg });
+                        }), val => !val.target)
+                    },
+
+                    selection: {}
+                };
+
+                function neo(s) {
+
+                    let q = "match (n:" + s.type.lookup + ") ";
+
+                    if (s.reltype.predicate.symmetrical) {
+                        q += " - [:" + s.reltype.predicate.lookup + "] - ";
+                    } else if (s.reltype.direction === "out") {
+                        q += " - [:" + s.reltype.predicate.lookup + "] -> ";
+                    } else {
+                        q += " <- [:" + s.reltype.predicate.lookup + "] - ";
+                    }
+                    //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
+
+                    if (s.reltype.target) {
+                        q += "(m:" + s.type.lookup + " {Lookup:'" + s.reltype.target + "'}) ";
+                    } else {
+                        q += "(m:" + s.type.lookup + ")";
+                    }
+
+                    // args.reltypes form additional filtering via relationship
+                    // args.props form additional filtering via where clause
+
+                    s.q = q;
+                }
+
+                function recursiveSelection(s, selection, parentType) {
+
+                    if (s.selectionSet) {
+
+                        let reltype = s.name.value;
+                        let type = classDefs[parentType.reltypes[reltype].class];
+                        let args = _.mapValues(_.keyBy(s.arguments.map(arg => ({ key: arg.name.value, value: arg.value.value })), 'key'), val => val.value);
+
+                        selection[reltype] = {
+                            type: type,
+
+                            reltype: parentType.reltypes[reltype],
+
+                            args: {
+                                reltypes: _.omitBy(_.mergeWith(_.clone(args), _.clone(type.reltypes), (arg, reltype) => {
+                                    return _.assignIn(reltype, { target: arg });
+                                }), val => !val.target),
+                                props: _.omitBy(_.mergeWith(_.clone(args), _.clone(type.props), (arg, prop) => {
+                                    return _.assignIn(prop, { target: arg });
+                                }), val => !val.target)
+                            },
+
+                            selection: {}
+                        };
+
+                        neo(selection[reltype]);
+
+                        s.selectionSet.selections.forEach(sNext => {
+                            recursiveSelection(sNext, selection[reltype].selection, type);
+                        });
+                    }
+                }
+
+                selections.forEach(s => {
+                    recursiveSelection(s, query.selection, baseType);
+                });
+
+                console.log(query);
+
+                //determine if args refer to rels or props
             }
         }
     };
