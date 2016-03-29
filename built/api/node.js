@@ -537,35 +537,96 @@ module.exports = function (config) {
                         }), val => !val.target)
                     },
 
-                    selection: {}
+                    selection: {},
+
+                    q: "",
+                    params: {}
                 };
+                query.neo = neo(query);
 
-                function neo(s) {
+                function neoRelationship(reltype) {
 
-                    let q = "match (n:" + s.type.lookup + ") ";
-
-                    if (s.reltype.predicate.symmetrical) {
-                        q += " - [:" + s.reltype.predicate.lookup + "] - ";
-                    } else if (s.reltype.direction === "out") {
-                        q += " - [:" + s.reltype.predicate.lookup + "] -> ";
+                    if (reltype.predicate.symmetrical) {
+                        return " - [:" + reltype.predicate.lookup + "] - ";
+                    } else if (reltype.direction === "out") {
+                        return " - [:" + reltype.predicate.lookup + "] -> ";
                     } else {
-                        q += " <- [:" + s.reltype.predicate.lookup + "] - ";
+                        return " <- [:" + reltype.predicate.lookup + "] - ";
                     }
                     //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
+                }
 
-                    if (s.reltype.target) {
-                        q += "(m:" + s.type.lookup + " {Lookup:'" + s.reltype.target + "'}) ";
+                function neoTarget(reltype, level) {
+
+                    let alias = "t" + level;
+
+                    if (reltype.target) {
+                        return "(" + alias + ":" + reltype.class + " {Lookup:'" + reltype.target + "'}) ";
                     } else {
-                        q += "(m:" + s.type.lookup + ")";
+                        return "(" + alias + ":" + reltype.class + ")";
                     }
+                    //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
+                }
+
+                function neo(s, level, aliases, aliasprefix, parentAlias, query) {
+
+                    aliases = aliases || new Array();
+                    level = level || 0;
+                    aliasprefix = aliasprefix || "a";
+                    query = query || s; //base query
+                    let q = "";
+                    let params = {};
+                    let alias = aliasprefix + level;
+                    let withAliases = "";
+
+                    if (aliases.length) {
+                        q = " with " + aliases.join(",") + " ";
+                    }
+
+                    aliases.push(alias);
+                    withAliases = " with " + aliases.join(",") + " ";
+
+                    q += " match (" + alias + ":" + s.type.lookup + ") ";
 
                     // args.reltypes form additional filtering via relationship
                     // args.props form additional filtering via where clause
 
-                    s.q = q;
+                    _.forOwn(s.args.reltypes, reltype => {
+                        q += withAliases + " match (" + alias + ") " + neoRelationship(reltype) + neoTarget(reltype, level);
+                    });
+
+                    let cnt = 0;
+
+                    _.forOwn(s.args.props, prop => {
+                        if (cnt === 0) {
+                            q += " where ";
+                        } else {
+                            q += " and ";
+                        }
+                        q += alias + "." + prop.name + " = {" + alias + prop.name + "} "; //rember to pass props as parameter
+                        params[alias + prop.name] = prop.target;
+                        cnt += 1;
+                    });
+
+                    // if (s.reltype) then query acts on a relationship with parent alias
+                    // (otherwise it starts with just the type (base query))
+                    if (s.reltype) {
+
+                        q += withAliases + " match (" + parentAlias + ") " + neoRelationship(s.reltype) + "(" + alias + ") ";
+                    }
+
+                    //accumulate
+                    query.q += " " + q + " ";
+                    _.assignIn(query.params, params);
+
+                    return {
+                        alias: alias,
+                        q: q,
+                        params: params
+                    };
                 }
 
-                function recursiveSelection(s, selection, parentType) {
+                function recursiveSelection(s, selection, parentType, level, aliases, aliasPrefix, parentAlias, query) {
 
                     if (s.selectionSet) {
 
@@ -576,8 +637,6 @@ module.exports = function (config) {
                         selection[reltype] = {
                             type: type,
 
-                            reltype: parentType.reltypes[reltype],
-
                             args: {
                                 reltypes: _.omitBy(_.mergeWith(_.clone(args), _.clone(type.reltypes), (arg, reltype) => {
                                     return _.assignIn(reltype, { target: arg });
@@ -587,23 +646,35 @@ module.exports = function (config) {
                                 }), val => !val.target)
                             },
 
+                            reltype: parentType.reltypes[reltype],
+
                             selection: {}
                         };
 
-                        neo(selection[reltype]);
+                        selection[reltype].neo = neo(selection[reltype], level, aliases, aliasPrefix, parentAlias, query);
 
-                        s.selectionSet.selections.forEach(sNext => {
-                            recursiveSelection(sNext, selection[reltype].selection, type);
+                        let aliasPrefixes = "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z".split(",");
+
+                        s.selectionSet.selections.forEach((sNext, i) => {
+                            recursiveSelection(sNext, selection[reltype].selection, type, level + 1, aliases, aliasPrefixes[i], selection[reltype].neo.alias, query);
                         });
                     }
                 }
 
-                selections.forEach(s => {
-                    recursiveSelection(s, query.selection, baseType);
+                let aliasPrefixes = "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z".split(",");
+                query.usedAliases = [query.neo.alias];
+                selections.forEach((s, i) => {
+                    recursiveSelection(s, query.selection, baseType, 1, query.usedAliases, aliasPrefixes[i], query.neo.alias, query);
                 });
 
-                console.log(query);
+                query.q += " return " + query.usedAliases.join(",");
 
+                cypher.executeQuery(query.q, "row", query.params).then(function (data) {
+
+                    let output = _.zipObject(query.usedAliases, data.map(d => d.row)[0]);
+
+                    console.log(cols);
+                });
                 //determine if args refer to rels or props
             }
         }
