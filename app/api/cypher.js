@@ -134,6 +134,7 @@ var that = {
             }
         });
     }
+
     /*
     , executeQuery2: function (q, type, params,cb) { //type = graph or row
         

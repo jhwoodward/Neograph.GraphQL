@@ -14,7 +14,8 @@
     var relationship = require("./relationship")(config);
     var changeCase = require("change-case");
      var predicate = require("./predicate")(config);
-  
+  var merge = require('deepmerge');
+ // var extendify = require('extendify');
 //read
 //data[0].row 
 //n , ID, labels
@@ -586,19 +587,23 @@ var that = {
                 ,
                 q:"",
                 params:{}
+                
             };
+           query.relAliases=new Array();
             query.neo = neo(query);
             
-            function neoRelationship(reltype){
+            function neoRelationship(reltype,relAlias){
              
+                relAlias = relAlias || "";
+                
                 if (reltype.predicate.symmetrical){
-                   return " - [:" + reltype.predicate.lookup + "] - ";
+                   return " - [" + relAlias + ":" + reltype.predicate.lookup + "] - ";
                 }
                 else if (reltype.direction === "out"){
-                   return " - [:" + reltype.predicate.lookup + "] -> ";
+                   return " - [" + relAlias + ":" + reltype.predicate.lookup + "] -> ";
                 }
                 else{
-                   return " <- [:" + reltype.predicate.lookup + "] - ";
+                   return " <- [" + relAlias + ":" + reltype.predicate.lookup + "] - ";
                 }
                    //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
             }
@@ -631,9 +636,15 @@ var that = {
                 if (aliases.length){
                     q = " with " + aliases.join(",") + " ";
                 }
+                if (query.relAliases.length){
+                    q+="," + query.relAliases.join(",");
+                }
                 
                 aliases.push(alias);
                 withAliases = " with " + aliases.join(",") + " ";
+                if (query.relAliases.length){
+                    withAliases+="," + query.relAliases.join(",");
+                }
                 
                 q += " match (" + alias + ":" + s.type.lookup + ") ";
 
@@ -664,7 +675,9 @@ var that = {
                // (otherwise it starts with just the type (base query))
                 if (s.reltype){
                 
-                    q += withAliases + " match (" + parentAlias + ") " + neoRelationship(s.reltype) + "(" + alias + ") ";
+                    let relAlias = parentAlias + "_" + alias;
+                    q += withAliases + " match (" + parentAlias + ") " + neoRelationship(s.reltype,relAlias) + "(" + alias + ") ";
+                    query.relAliases.push(relAlias);
                 }
                 
               //accumulate
@@ -684,9 +697,7 @@ var that = {
             function recursiveSelection(s,selection,parentType,level,aliases,aliasPrefix,parentAlias,query){
                 
                if (s.selectionSet){
-                   
-                 
-                    
+
                     let reltype=s.name.value;
                     let type = classDefs[parentType.reltypes[reltype].class];
                     let args = _.mapValues(
@@ -728,21 +739,93 @@ var that = {
             });
           
 
-         query.q += " return " + query.usedAliases.join(",");
-
-        cypher.executeQuery(query.q,"row",query.params).then(function(data){
-            
-                
+            query.q += " return " + query.usedAliases.join(",");
+        //    if (query.relAliases.length){
+        //        query.q+="," + query.relAliases.join(",");
+         //   }
           
-           let output = _.zipObject(query.usedAliases,data.map(d=>d.row)[0]);
+       
+
+           return cypher.executeStatements([cypher.buildStatement(query.q,"row",query.params)]).then(function(results){
             
-           console.log(cols);
+                let data = [];
+              
+                results[0].data.forEach(d=>{
+                    
+                    let row = {};
+                    let cnt = 0;
+                    results[0].columns.forEach(col =>{
+                        row[col]=utils.camelCase(d.row[cnt]);
+                        cnt+=1;
+                    })
+
+                    data.push(row)
+                    
+                });
                 
-                
+                  let grouped = _.groupBy(data,(item)=>{
             
+                        return item.a0.lookup;
+                        
+                    });
+                    
+    
+            function fill(selection,row,obj){
+                _.forOwn(selection,(reltype,reltypekey)=>{
+                    let k = "RELTYPE_" + reltypekey;
+                    if (!obj[k]){
+                        obj[k]={};
+                    }
+                    obj[k][row[reltype.neo.alias].lookup] = row[reltype.neo.alias];
+                    
+                    fill(reltype.selection,row,obj[k][row[reltype.neo.alias].lookup]);
+                });
+            }
             
-        })
-            //determine if args refer to rels or props
+           let transformed = {};     
+           
+           _.forOwn(grouped,item=>{
+               
+                item.forEach(row=>{
+                    
+                    let out = row[query.neo.alias];
+                    fill(query.selection,row,out);
+                    if (transformed[out.lookup]){
+                        transformed[out.lookup] = merge(transformed[out.lookup],out);
+                    }
+                    else{
+                       transformed[out.lookup]=out;
+                    }
+                  
+                });
+           })
+
+        function toArray(item){
+            
+            _.forOwn(item,(val,key)=>{
+            
+                if (key.indexOf("RELTYPE_") === 0)
+                {
+                    let k= key.replace("RELTYPE_","");
+                    item[k]=[];
+                    
+                    _.forOwn(val,(val2,key2)=>{
+                        toArray(val2);
+                        item[k].push(val2);
+                    });
+                }
+            })
+            
+        }
+
+        _.forOwn(transformed,item=>{
+            toArray(item);
+        });
+
+         return _.values(transformed);       
+
+        });
+          
             
             
         

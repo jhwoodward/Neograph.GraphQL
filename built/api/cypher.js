@@ -128,6 +128,7 @@ module.exports = function (config) {
                 }
             });
         }
+
         /*
         , executeQuery2: function (q, type, params,cb) { //type = graph or row
             
