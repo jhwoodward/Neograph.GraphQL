@@ -670,7 +670,15 @@ var that = {
                          q+= "ID(" + alias + ") = {" + alias + prop.name + "} ";
                     }
                     else{
-                       q+= alias + "." + changeCase.pascalCase(prop.name) + " = {" + alias + prop.name + "} ";
+                       
+                     
+
+                       let comparer = "=";
+                       if (prop.target.indexOf("*") === 0 || prop.target.indexOf("*")===prop.target.length-1 ){
+                           comparer = "=~";
+                           prop.target.replaceAll('*','.*');
+                       }
+                       q+= alias + "." + changeCase.pascalCase(prop.name) + " " + comparer + " {" + alias + prop.name + "} ";
                     }
                     
                  

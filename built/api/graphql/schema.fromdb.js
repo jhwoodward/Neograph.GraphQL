@@ -96,17 +96,6 @@ let generateFields = () => {
                     return node.list.search(t, args, selections, classDefs).then(data => {
                         return data[0];
                     });
-
-                    //.catch((err)=>{throw err})
-
-                    /*
-                    if (args.lookup){
-                          return node.get(args.lookup);
-                    }
-                    if (args.id){
-                          return node.get(args.id);
-                    }
-                    */
                 }
             };
 
