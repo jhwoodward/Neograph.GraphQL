@@ -546,6 +546,7 @@ module.exports = function (config) {
                 };
                 query.relAliases = new Array();
                 query.neo = neo(query);
+                let aliasPrefixes = "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z".split(",");
 
                 function neoRelationship(reltype, relAlias) {
 
@@ -588,6 +589,7 @@ module.exports = function (config) {
                         q = " with " + aliases.join(",") + " ";
                     }
                     if (query.relAliases.length) {
+                        //not currently in use but might be needed if graph type if required at some point
                         q += "," + query.relAliases.join(",");
                     }
 
@@ -614,7 +616,13 @@ module.exports = function (config) {
                         } else {
                             q += " and ";
                         }
-                        q += alias + "." + prop.name + " = {" + alias + prop.name + "} "; //rember to pass props as parameter
+
+                        if (prop.name === "id") {
+                            q += "ID(" + alias + ") = {" + alias + prop.name + "} ";
+                        } else {
+                            q += alias + "." + changeCase.pascalCase(prop.name) + " = {" + alias + prop.name + "} ";
+                        }
+
                         params[alias + prop.name] = prop.target;
                         cnt += 1;
                     });
@@ -622,13 +630,12 @@ module.exports = function (config) {
                     // if (s.reltype) then query acts on a relationship with parent alias
                     // (otherwise it starts with just the type (base query))
                     if (s.reltype) {
-
                         let relAlias = parentAlias + "_" + alias;
                         q += withAliases + " match (" + parentAlias + ") " + neoRelationship(s.reltype, relAlias) + "(" + alias + ") ";
                         query.relAliases.push(relAlias);
                     }
 
-                    //accumulate
+                    //accumulate query and params
                     query.q += " " + q + " ";
                     _.assignIn(query.params, params);
 
@@ -665,83 +672,80 @@ module.exports = function (config) {
                         };
 
                         selection[reltype].neo = neo(selection[reltype], level, aliases, aliasPrefix, parentAlias, query);
-
-                        let aliasPrefixes = "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z".split(",");
-
                         s.selectionSet.selections.forEach((sNext, i) => {
                             recursiveSelection(sNext, selection[reltype].selection, type, level + 1, aliases, aliasPrefixes[i], selection[reltype].neo.alias, query);
                         });
                     }
                 }
 
-                let aliasPrefixes = "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z".split(",");
                 query.usedAliases = [query.neo.alias];
                 selections.forEach((s, i) => {
                     recursiveSelection(s, query.selection, baseType, 1, query.usedAliases, aliasPrefixes[i], query.neo.alias, query);
                 });
 
                 query.q += " return " + query.usedAliases.join(",");
-                //    if (query.relAliases.length){
-                //        query.q+="," + query.relAliases.join(",");
-                //   }
+                if (query.relAliases.length) {
+                    query.q += "," + query.relAliases.join(",");
+                }
+                let ids = query.usedAliases.map(alias => {
+                    return "ID(" + alias + ")";
+                });
+                query.q += "," + ids.join(",");
 
                 return cypher.executeStatements([cypher.buildStatement(query.q, "row", query.params)]).then(function (results) {
-
                     let data = [];
-
                     results[0].data.forEach(d => {
-
                         let row = {};
                         let cnt = 0;
                         results[0].columns.forEach(col => {
-                            row[col] = utils.camelCase(d.row[cnt]);
+                            if (col.indexOf("ID(") === -1) {
+                                row[col] = utils.camelCase(d.row[cnt]);
+                            } else {
+                                let idForCol = col.replace("ID(", "").replace(")", "");
+                                row[idForCol].id = d.row[cnt];
+                            }
+
                             cnt += 1;
                         });
-
                         data.push(row);
                     });
 
                     let grouped = _.groupBy(data, item => {
-
-                        return item.a0.lookup;
+                        return item.a0.id;
                     });
+
+                    let reltypePrefix = "RELTYPE_";
 
                     function fill(selection, row, obj) {
                         _.forOwn(selection, (reltype, reltypekey) => {
-                            let k = "RELTYPE_" + reltypekey;
+                            let k = reltypePrefix + reltypekey;
                             if (!obj[k]) {
                                 obj[k] = {};
                             }
-                            obj[k][row[reltype.neo.alias].lookup] = row[reltype.neo.alias];
-
-                            fill(reltype.selection, row, obj[k][row[reltype.neo.alias].lookup]);
+                            obj[k][row[reltype.neo.alias].id] = row[reltype.neo.alias];
+                            fill(reltype.selection, row, obj[k][row[reltype.neo.alias].id]);
                         });
                     }
 
                     let transformed = {};
 
                     _.forOwn(grouped, item => {
-
                         item.forEach(row => {
-
                             let out = row[query.neo.alias];
                             fill(query.selection, row, out);
-                            if (transformed[out.lookup]) {
-                                transformed[out.lookup] = merge(transformed[out.lookup], out);
+                            if (transformed[out.id]) {
+                                transformed[out.id] = merge(transformed[out.id], out);
                             } else {
-                                transformed[out.lookup] = out;
+                                transformed[out.id] = out;
                             }
                         });
                     });
 
                     function toArray(item) {
-
                         _.forOwn(item, (val, key) => {
-
-                            if (key.indexOf("RELTYPE_") === 0) {
-                                let k = key.replace("RELTYPE_", "");
+                            if (key.indexOf(reltypePrefix) === 0) {
+                                let k = key.replace(reltypePrefix, "");
                                 item[k] = [];
-
                                 _.forOwn(val, (val2, key2) => {
                                     toArray(val2);
                                     item[k].push(val2);

@@ -82,16 +82,7 @@ let generateFields = () => {
                             };
                             
                             p[reltypekey].args = makeGraphQLListArgs(classDefs[reltype.class]);
-                            
-                            
-                            /*
-                            if (!reltype.nolazy || reltype.direction === 'in') {
-                                //only respect nolazy for outbound rleationships ? eg enable getting image.image_of..>picture
-                                p[reltypekey].resolve = function (obj) {
-                                    return node.getRelatedItems(obj, reltype, t.reltypes, classDefs);
-                                };
-                            }
-                            */
+
                         }
                         
                         return p;
@@ -102,12 +93,30 @@ let generateFields = () => {
 
             fields[t.lookup]={
                 type: single,
-                 args:{lookup:{type:GraphQLString}} ,
-                 resolve:function(undefined,args){
-                      return node.get(args.id);
+                 args:{
+                     lookup:{type:GraphQLString},
+                     id:{type:GraphQLInt}
+                } ,
+                 resolve:function(source,args,root){
+                     
+                     let selections = root.fieldASTs[0].selectionSet.selections;
+                     return node.list.search(t,args,selections,classDefs).then(data=>{return data[0];});
+                     
+                     //.catch((err)=>{throw err})
+                        
+                     /*
+                     if (args.lookup){
+                           return node.get(args.lookup);
+                     }
+                     if (args.id){
+                           return node.get(args.id);
+                     }
+                     */
+                    
+                   
                  } 
             };
-            
+      
            
             fields[t.lookup+'s']={//t.plural ? -- from db
                 type:new GraphQLList(single),

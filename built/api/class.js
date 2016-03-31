@@ -76,10 +76,8 @@ module.exports = function (config) {
                         let cls = e.row[3].map(c => {
                             return { class: c };
                         });
-                        let nolazy = e.row[4].map(z => {
-                            return { nolazy: z.nolazy || false };
-                        });
-                        let reltypes = _.keyBy(_.merge(pred, dir, cls, nolazy), function (r) {
+                        //    let nolazy = e.row[4].map(z =>{return {nolazy:z.nolazy || false}});
+                        let reltypes = _.keyBy(_.merge(pred, dir, cls), function (r) {
                             return r.direction === "in" ? r.predicate.reverse.toLowerCase() : r.predicate.lookup.toLowerCase();
                         });
 

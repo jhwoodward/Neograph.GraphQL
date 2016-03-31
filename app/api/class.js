@@ -74,8 +74,8 @@ var that = {
                     let pred = e.row[1].map(p=>{return{predicate:predicate.list[p]}});
                     let dir = _.fill(Array(pred.length),{direction:e.row[2]});
                     let cls = e.row[3].map(c=>{return{class:c}});
-                    let nolazy = e.row[4].map(z =>{return {nolazy:z.nolazy || false}});
-                    let reltypes = _.keyBy(_.merge(pred,dir,cls,nolazy)
+                //    let nolazy = e.row[4].map(z =>{return {nolazy:z.nolazy || false}});
+                    let reltypes = _.keyBy(_.merge(pred,dir,cls)
                                     ,function(r){
                                         return r.direction==="in"? r.predicate.reverse.toLowerCase() : r.predicate.lookup.toLowerCase();
                                     });
