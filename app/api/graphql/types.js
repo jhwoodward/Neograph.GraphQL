@@ -8,7 +8,7 @@ import {
 } from 'graphql';
 
 
-
+/*
 let listOptions =  new GraphQLObjectType({
     name: "ListOptions",
     fields:() => ({
@@ -59,15 +59,7 @@ let picture =  new GraphQLObjectType({
     })
 });
 
-let predicate =  new GraphQLObjectType({
-    name: 'Predicate',
-    fields:() => ({
-        lookup:{type:GraphQLString},
-        direction:{type:GraphQLString},//in/out        
-        symmetrical:{type:GraphQLBoolean},
-        force:{type:GraphQLString}//Attract/Repel
-    })
-});
+
 
 let lookup=new GraphQLObjectType({
     name: 'Lookup',
@@ -104,11 +96,56 @@ let node= new GraphQLObjectType({
         relationships:{type:new GraphQLList(relationship)}
     })
 });
+*/
+
+let predicate =  new GraphQLObjectType({
+    name: 'Predicate',
+    fields:() => ({
+        lookup:{type:GraphQLString},
+        direction:{type:GraphQLString},//in/out        
+        symmetrical:{type:GraphQLBoolean},
+        force:{type:GraphQLString}//Attract/Repel
+    })
+});
+
+
+let classRelationship = new GraphQLObjectType({
+    name: 'Relationship',
+    fields:()=>({
+        predicate:{type:predicate},
+        items:{type:new GraphQLList(classtype)},
+        })
+});
+
+let property = new GraphQLObjectType({
+    name: 'Property',
+    fields:()=>({
+        name:{type:GraphQLString},
+        type:{type:GraphQLString},
+        required:{type:GraphQLBoolean},
+        readonly:{type:GraphQLBoolean}
+        })
+});
+
+let classtype = new GraphQLObjectType({
+    name: 'Class',
+    fields:() => ({
+  
+        lookup:{type:GraphQLString},
+        extends:{type:new GraphQLList(classtype)},
+        properties:{type:new GraphQLList(property)},
+        relationships:{type:new GraphQLList(classRelationship)},
+    })
+});
+
+
 
 export default {
+    /*
     listOptions:listOptions,
     picture:picture,
     node:node,
     relationship:relationship,
-    lookup:lookup
+    lookup:lookup,*/
+    classtype:classtype
 };

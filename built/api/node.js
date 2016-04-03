@@ -599,7 +599,11 @@ module.exports = function (config) {
                         withAliases += "," + query.relAliases.join(",");
                     }
 
-                    q += " match (" + alias + ":" + s.type.lookup + ") ";
+                    let match = alias + ":" + s.type.lookup;
+                    if (s.args.props.labels) {
+                        match += ":" + s.args.props.labels.target.split(",").join(":");
+                    }
+                    q += " match (" + match + ") ";
 
                     // args.reltypes form additional filtering via relationship
                     // args.props form additional filtering via where clause
@@ -611,26 +615,27 @@ module.exports = function (config) {
                     let cnt = 0;
 
                     _.forOwn(s.args.props, prop => {
-                        if (cnt === 0) {
-                            q += " where ";
-                        } else {
-                            q += " and ";
-                        }
-
-                        if (prop.name === "id") {
-                            q += "ID(" + alias + ") = {" + alias + prop.name + "} ";
-                        } else {
-
-                            let comparer = "=";
-                            if (prop.target.indexOf("*") === 0 || prop.target.indexOf("*") === prop.target.length - 1) {
-                                comparer = "=~";
-                                prop.target.replaceAll('*', '.*');
+                        if (prop.name != "labels") {
+                            if (cnt === 0) {
+                                q += " where ";
+                            } else {
+                                q += " and ";
                             }
-                            q += alias + "." + changeCase.pascalCase(prop.name) + " " + comparer + " {" + alias + prop.name + "} ";
-                        }
 
-                        params[alias + prop.name] = prop.target;
-                        cnt += 1;
+                            if (prop.name === "id") {
+                                q += "ID(" + alias + ") = {" + alias + prop.name + "} ";
+                            } else {
+                                let comparer = "=";
+                                if (prop.target.indexOf("*") === 0 || prop.target.indexOf("*") === prop.target.length - 1) {
+                                    comparer = "=~";
+                                    prop.target.replaceAll('*', '.*');
+                                }
+                                q += alias + "." + changeCase.pascalCase(prop.name) + " " + comparer + " {" + alias + prop.name + "} ";
+                            }
+
+                            params[alias + prop.name] = prop.target;
+                            cnt += 1;
+                        }
                     });
 
                     // if (s.reltype) then query acts on a relationship with parent alias
@@ -697,6 +702,10 @@ module.exports = function (config) {
                     return "ID(" + alias + ")";
                 });
                 query.q += "," + ids.join(",");
+                let labels = query.usedAliases.map(alias => {
+                    return "LABELS(" + alias + ")";
+                });
+                query.q += "," + labels.join(",");
 
                 return cypher.executeStatements([cypher.buildStatement(query.q, "row", query.params)]).then(function (results) {
                     let data = [];
@@ -704,11 +713,14 @@ module.exports = function (config) {
                         let row = {};
                         let cnt = 0;
                         results[0].columns.forEach(col => {
-                            if (col.indexOf("ID(") === -1) {
+                            if (col.indexOf("ID(") === -1 && col.indexOf("LABELS(") === -1) {
                                 row[col] = utils.camelCase(d.row[cnt]);
-                            } else {
+                            } else if (col.indexOf("ID(") === 0) {
                                 let idForCol = col.replace("ID(", "").replace(")", "");
                                 row[idForCol].id = d.row[cnt];
+                            } else if (col.indexOf("LABELS(") === 0) {
+                                let labelsForCol = col.replace("LABELS(", "").replace(")", "");
+                                row[labelsForCol].labels = d.row[cnt];
                             }
 
                             cnt += 1;

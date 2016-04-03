@@ -22,7 +22,24 @@ let lodash = require("lodash");
 
 let makeGraphQLListArgs = (t)=>{
     
-    let out =  makeGraphQLprops(t.props);
+    let out =  {};
+    
+      for (let pkey in t.props){
+        let p = t.props[pkey];
+        switch (p.type){
+            case "boolean":
+                out[pkey] = {type:GraphQLBoolean};
+                break;
+            case "number":
+                out[pkey] = {type:GraphQLInt};
+                break;
+         //   case "array[string]":
+         //       out[pkey] ={type:new GraphQLList(GraphQLString)};
+         //       break;
+            default :
+                out[pkey] = {type:GraphQLString};
+        }
+    }
     
      for (let reltypekey in t.reltypes)
     {
@@ -47,6 +64,9 @@ let makeGraphQLprops = (props) =>{
             case "number":
                 out[pkey] = {type:GraphQLInt};
                 break;
+            case "array<string>":
+                out[pkey] ={type:new GraphQLList(GraphQLString)};
+                break;
             default :
                 out[pkey] = {type:GraphQLString};
         }
@@ -66,7 +86,7 @@ let generateFields = () => {
            
          lodash.forOwn(classDefs,t=>{
              
-             let single = new GraphQLObjectType(
+             t.graphQLObjectType = new GraphQLObjectType(
                 {
                     name:t.lookup,
                     description:t.description,
@@ -76,20 +96,20 @@ let generateFields = () => {
                         for (let reltypekey in t.reltypes)
                         {
                             let reltype = t.reltypes[reltypekey];
-                            let objtype = fields[reltype.class].type;
+                            let objtype = classDefs[reltype.class].graphQLObjectType;
                             p[reltypekey] = {
                                 type: new GraphQLList(objtype)
                             };
-                            
-                            p[reltypekey].args = makeGraphQLListArgs(classDefs[reltype.class]);
+                            let args =makeGraphQLListArgs(classDefs[reltype.class]);
 
+                            p[reltypekey].args = args;
                         }
                         
                         return p;
                     }
                 });
 
-
+/*
 
             fields[t.lookup]={
                 type: single,
@@ -103,21 +123,31 @@ let generateFields = () => {
                      return node.list.search(t,args,selections,classDefs).then(data=>{return data[0];});
                  } 
             };
-      
+      */
            
-            fields[t.lookup+'s']={//t.plural ? -- from db
-                type:new GraphQLList(single),
+            fields[t.lookup]={//t.plural ? -- from db
+                type:new GraphQLList(t.graphQLObjectType),
                  args: makeGraphQLListArgs(t),
                  resolve: (source, args, root) => {
                         let selections = root.fieldASTs[0].selectionSet.selections;
                         return node.list.search(t,args,selections,classDefs);//.catch((err)=>{throw err})
-                 } 
-                 
-                 
-                  
+                 }   
             };
             
+         
+            
+ 
+            
         });
+        
+        
+        fields["Classes"]={
+            type:new GraphQLList(types.classtype),
+            resolve:(source,args)=>{
+                
+                
+            }
+        };
         
         return fields;
         

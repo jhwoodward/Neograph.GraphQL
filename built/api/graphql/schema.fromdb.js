@@ -27,7 +27,24 @@ let lodash = require("lodash");
 
 let makeGraphQLListArgs = t => {
 
-    let out = makeGraphQLprops(t.props);
+    let out = {};
+
+    for (let pkey in t.props) {
+        let p = t.props[pkey];
+        switch (p.type) {
+            case "boolean":
+                out[pkey] = { type: GraphQLBoolean };
+                break;
+            case "number":
+                out[pkey] = { type: _graphql.GraphQLInt };
+                break;
+            //   case "array[string]":
+            //       out[pkey] ={type:new GraphQLList(GraphQLString)};
+            //       break;
+            default:
+                out[pkey] = { type: _graphql.GraphQLString };
+        }
+    }
 
     for (let reltypekey in t.reltypes) {
         out[reltypekey] = { type: _graphql.GraphQLString };
@@ -48,6 +65,9 @@ let makeGraphQLprops = props => {
             case "number":
                 out[pkey] = { type: _graphql.GraphQLInt };
                 break;
+            case "array<string>":
+                out[pkey] = { type: new _graphql.GraphQLList(_graphql.GraphQLString) };
+                break;
             default:
                 out[pkey] = { type: _graphql.GraphQLString };
         }
@@ -60,11 +80,11 @@ let generateFields = () => {
 
     return classDef.refreshList().then(classDefs => {
 
-        let _fields = {};
+        let fields = {};
 
         lodash.forOwn(classDefs, t => {
 
-            let single = new _graphql.GraphQLObjectType({
+            t.graphQLObjectType = new _graphql.GraphQLObjectType({
                 name: t.lookup,
                 description: t.description,
                 fields: () => {
@@ -72,45 +92,51 @@ let generateFields = () => {
 
                     for (let reltypekey in t.reltypes) {
                         let reltype = t.reltypes[reltypekey];
-                        let objtype = _fields[reltype.class].type;
+                        let objtype = classDefs[reltype.class].graphQLObjectType;
                         p[reltypekey] = {
                             type: new _graphql.GraphQLList(objtype)
                         };
+                        let args = makeGraphQLListArgs(classDefs[reltype.class]);
 
-                        p[reltypekey].args = makeGraphQLListArgs(classDefs[reltype.class]);
+                        p[reltypekey].args = args;
                     }
 
                     return p;
                 }
             });
 
-            _fields[t.lookup] = {
-                type: single,
-                args: {
-                    lookup: { type: _graphql.GraphQLString },
-                    id: { type: _graphql.GraphQLInt }
-                },
-                resolve: function resolve(source, args, root) {
+            /*
+            
+                        fields[t.lookup]={
+                            type: single,
+                             args:{
+                                 lookup:{type:GraphQLString},
+                                 id:{type:GraphQLInt}
+                            } ,
+                             resolve:function(source,args,root){
+                                 
+                                 let selections = root.fieldASTs[0].selectionSet.selections;
+                                 return node.list.search(t,args,selections,classDefs).then(data=>{return data[0];});
+                             } 
+                        };
+                  */
 
-                    let selections = root.fieldASTs[0].selectionSet.selections;
-                    return node.list.search(t, args, selections, classDefs).then(data => {
-                        return data[0];
-                    });
-                }
-            };
-
-            _fields[t.lookup + 's'] = { //t.plural ? -- from db
-                type: new _graphql.GraphQLList(single),
+            fields[t.lookup] = { //t.plural ? -- from db
+                type: new _graphql.GraphQLList(t.graphQLObjectType),
                 args: makeGraphQLListArgs(t),
                 resolve: (source, args, root) => {
                     let selections = root.fieldASTs[0].selectionSet.selections;
                     return node.list.search(t, args, selections, classDefs); //.catch((err)=>{throw err})
                 }
-
             };
         });
 
-        return _fields;
+        fields["Classes"] = {
+            type: new _graphql.GraphQLList(_types2.default.classtype),
+            resolve: (source, args) => {}
+        };
+
+        return fields;
     });
 };
 
@@ -118,12 +144,12 @@ var out = {
 
     load: app => {
 
-        generateFields().then(_fields2 => {
+        generateFields().then(_fields => {
 
             let schema = new _graphql.GraphQLSchema({
                 query: new _graphql.GraphQLObjectType({
                     name: 'Query',
-                    fields: () => _fields2
+                    fields: () => _fields
                 })
             });
 

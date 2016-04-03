@@ -10,6 +10,7 @@ module.exports = function (config) {
     var changeCase = require("change-case");
     var predicate = require("./predicate")(config);
     var _ = require("lodash");
+    var merge = require('deepmerge');
 
     var that = {
         //object containing all types keyed on Lookup
@@ -32,15 +33,25 @@ module.exports = function (config) {
         buildSchema: function buildSchema(predicates) {
 
             let props = "match (n:Class) optional match n - [r:PROPERTY] -> (p:Property) return n,collect(r),collect(p)";
-            props += "union match (n:Class) - [:EXTENDS*] -> (b:Class)-[r:PROPERTY]->(p:Property) return n,collect(r),collect(p)";
+            props += " union match (n:Class) - [:EXTENDS*] -> (b:Class)-[r:PROPERTY]->(p:Property) return n,collect(r),collect(p)";
+
+            //backwards - for graphql return type only
+            props += " union match (n:Class) <- [:EXTENDS*] - (b:Class)-[r:PROPERTY]->(p:Property) return n,collect(r),collect(p)";
 
             let relTypes = "match (n:Class ) -[r] -> (c:Class)  where type(r)<>'EXTENDS'";
             relTypes += "  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)";
             relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) - [r] -> (c:Class)  where type(r)<>'EXTENDS' ";
             relTypes += "  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)";
+
             relTypes += " union match (n:Class ) <-[r] - (c:Class)  where type(r)<>'EXTENDS' ";
             relTypes += "  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)";
             relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) <- [r] - (c:Class)  where type(r)<>'EXTENDS' ";
+            relTypes += "  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)";
+
+            //backwards - for graphql return type only
+            relTypes += " union match (n:Class ) <- [:EXTENDS*] - (d:Class) - [r] -> (c:Class)  where type(r)<>'EXTENDS' ";
+            relTypes += "  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)";
+            relTypes += " union match (n:Class ) <- [:EXTENDS*] - (d:Class) <- [r] - (c:Class)  where type(r)<>'EXTENDS' ";
             relTypes += "  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)";
 
             return cypher.executeStatements([props, relTypes]).then(function (results) {
@@ -64,6 +75,12 @@ module.exports = function (config) {
                     });
                     type.props = _.keyBy(_.merge(props, propsMetadata), 'name');
 
+                    //add id and labels
+                    type.props.id = { type: 'number', name: 'id', readonly: true };
+                    type.props.labels = { type: 'array<string>', name: 'labels' };
+                    type.props.lookup = { type: 'string', name: 'lookup', required: true };
+                    type.props.description = { type: 'string', name: 'description' };
+
                     type.reltypes = {};
                     let rels = results[1].data.filter(item => {
                         return type.lookup === item.row[0];
@@ -76,7 +93,6 @@ module.exports = function (config) {
                         let cls = e.row[3].map(c => {
                             return { class: c };
                         });
-                        //    let nolazy = e.row[4].map(z =>{return {nolazy:z.nolazy || false}});
                         let reltypes = _.keyBy(_.merge(pred, dir, cls), function (r) {
                             return r.direction === "in" ? r.predicate.reverse.toLowerCase() : r.predicate.lookup.toLowerCase();
                         });
@@ -86,7 +102,12 @@ module.exports = function (config) {
 
                     //only add if it has props - otherwise it has no use
                     if (Object.keys(type.props).length) {
-                        types[type.lookup] = type;
+
+                        if (types[type.lookup]) {
+                            types[type.lookup] = merge(types[type.lookup], type);
+                        } else {
+                            types[type.lookup] = type;
+                        }
                     }
                 });
 
