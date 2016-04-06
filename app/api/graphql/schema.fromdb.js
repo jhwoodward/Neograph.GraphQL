@@ -5,8 +5,9 @@ import {
     GraphQLString,
     GraphQLList
 } from 'graphql';
-
-
+import {graphql} from 'graphql';
+import {introspectionQuery} from 'graphql/utilities';
+import fs from 'fs';
 
 import GraphQLHTTP from 'express-graphql';
 import types from './types.js';
@@ -130,8 +131,12 @@ let generateFields = () => {
                  args: makeGraphQLListArgs(t),
                  resolve: (source, args, root) => {
                         let selections = root.fieldASTs[0].selectionSet.selections;
-                        return node.list.search(t,args,selections,classDefs);//.catch((err)=>{throw err})
-                 }   
+                        return node.list.search(t,args,selections,root.fragments,classDefs);
+                    
+                        
+                     //   ;//.catch((err)=>{throw err})
+                       // return data;
+                }   
             };
             
          
@@ -140,15 +145,17 @@ let generateFields = () => {
             
         });
         
-        
-        fields["Classes"]={
-            type:new GraphQLList(types.classtype),
-            resolve:(source,args)=>{
-                
-                
-            }
-        };
-        
+        /*
+        fields["GraphQuery"]=new GraphQLObjectType({
+            name:"GraphQuery",
+            fields:()=> ({
+        node:{type:types.graph},
+        provenance:{type:types.graph},
+        period:{type:types.graph}
+
+    })
+        });
+        */
         return fields;
         
     });
@@ -161,17 +168,34 @@ var out = {
         
         generateFields().then((fields)=>{
             
-            let schema = new GraphQLSchema({
-            query:new GraphQLObjectType({
-                    name: 'Query',
+            let storeType = new GraphQLObjectType({
+                    name: 'Store',
                     fields:() => fields
+                });
+         
+            let store = {};
+            
+            let schema = new GraphQLSchema({
+              query:new GraphQLObjectType({
+                    name: 'Query',
+                    fields:() => ({
+                        store:{
+                            type:storeType,
+                            resolve:()=>store
+                        }
+                    })
                 })
             });
+        
             
              app.use('/graphql',GraphQLHTTP({
-                schema:schema,
+                schema,
                 graphiql:true
             }));
+            
+            graphql(schema,introspectionQuery).then(function(json){
+                fs.writeFile('../data/schema.json',JSON.stringify(json,null,2));
+            })
                 
         });   
     }

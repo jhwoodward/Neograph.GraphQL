@@ -568,7 +568,7 @@ var that = {
 
         }
         ,
-        search:function(baseType,baseArgs,selections,classDefs){
+        search:function(baseType,baseArgs,selections,fragments,classDefs){
         
         
             let query = {
@@ -589,41 +589,74 @@ var that = {
                 params:{}
                 
             };
-           query.relAliases=new Array();
+            
+            function mergeFragments(selections){
+                
+                let out = (new Array()).concat(selections);
+                //merge fragments into selections
+                selections.forEach(s=>{
+                    if (s.kind==="FragmentSpread"){
+                        let fragSelections = fragments[s.name.value].selectionSet.selections;
+                        fragSelections = mergeFragments(fragSelections);
+                        out = out.concat(fragSelections);
+                    }
+                })
+                
+                return out;
+            
+            }
+            
+            //merge fragments into selections
+            let mergedSelections = (new Array()).concat(selections);
+            selections.forEach(s=>{
+                if (s.kind==="FragmentSpread"){
+                    let fragSelections = fragments[s.name.value].selectionSet.selections;
+                    fragSelections = mergeFragments(fragSelections);
+                    mergedSelections = mergedSelections.concat(fragSelections);
+                }
+            })
+            
+            selections = mergedSelections;
+           
+            query.relAliases=new Array();
+            
             query.neo = neo(query);
-             let aliasPrefixes = ("a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z").split(",");
             
-            function neoRelationship(reltype,relAlias){
-             
-                relAlias = relAlias || "";
-                
-                if (reltype.predicate.symmetrical){
-                   return " - [" + relAlias + ":" + reltype.predicate.lookup + "] - ";
-                }
-                else if (reltype.direction === "out"){
-                   return " - [" + relAlias + ":" + reltype.predicate.lookup + "] -> ";
-                }
-                else{
-                   return " <- [" + relAlias + ":" + reltype.predicate.lookup + "] - ";
-                }
-                   //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
-            }
+            let aliasPrefixes = ("a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z").split(",");
             
-            function neoTarget(reltype,level){
-                
-                let alias = "t" + level;
-                  
-                if (reltype.target){
-                    return "(" + alias + ":" + reltype.class + " {Lookup:'" + reltype.target + "'}) ";
-                }
-                else{
-                    return "(" + alias + ":" + reltype.class + ")";
-                }
-                   //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
-            }
+        
             
             function neo(s,level,aliases,aliasprefix,parentAlias,query){
  
+                function neoRelationship(reltype,relAlias){
+             
+                    relAlias = relAlias || "";
+                    
+                    if (reltype.predicate.symmetrical){
+                    return " - [" + relAlias + ":" + reltype.predicate.lookup + "] - ";
+                    }
+                    else if (reltype.direction === "out"){
+                    return " - [" + relAlias + ":" + reltype.predicate.lookup + "] -> ";
+                    }
+                    else{
+                    return " <- [" + relAlias + ":" + reltype.predicate.lookup + "] - ";
+                    }
+                    //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
+                }
+            
+                function neoTarget(reltype,level){
+                
+                    let alias = "t" + level;
+                    
+                    if (reltype.target){
+                        return "(" + alias + ":" + reltype.class + " {Lookup:'" + reltype.target + "'}) ";
+                    }
+                    else{
+                        return "(" + alias + ":" + reltype.class + ")";
+                    }
+                    //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
+                }
+                
                 aliases = aliases || new Array();
                 level = level || 0;
                 aliasprefix = aliasprefix || "a";
@@ -712,7 +745,7 @@ var that = {
             
             function recursiveSelection(s,selection,parentType,level,aliases,aliasPrefix,parentAlias,query){
                 
-               if (s.selectionSet){
+               if (s.selectionSet && s.kind!=="FragmentSpread"){
 
                     let reltype=s.name.value;
                     let type = classDefs[parentType.reltypes[reltype].class];

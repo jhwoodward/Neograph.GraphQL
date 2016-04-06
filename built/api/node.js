@@ -525,7 +525,7 @@ module.exports = function (config) {
                 });
             },
 
-            search: function search(baseType, baseArgs, selections, classDefs) {
+            search: function search(baseType, baseArgs, selections, fragments, classDefs) {
 
                 let query = {
                     type: baseType,
@@ -544,37 +544,67 @@ module.exports = function (config) {
                     params: {}
 
                 };
+
+                function mergeFragments(selections) {
+
+                    let out = new Array().concat(selections);
+                    //merge fragments into selections
+                    selections.forEach(s => {
+                        if (s.kind === "FragmentSpread") {
+                            let fragSelections = fragments[s.name.value].selectionSet.selections;
+                            fragSelections = mergeFragments(fragSelections);
+                            out = out.concat(fragSelections);
+                        }
+                    });
+
+                    return out;
+                }
+
+                //merge fragments into selections
+                let mergedSelections = new Array().concat(selections);
+                selections.forEach(s => {
+                    if (s.kind === "FragmentSpread") {
+                        let fragSelections = fragments[s.name.value].selectionSet.selections;
+                        fragSelections = mergeFragments(fragSelections);
+                        mergedSelections = mergedSelections.concat(fragSelections);
+                    }
+                });
+
+                selections = mergedSelections;
+
                 query.relAliases = new Array();
+
                 query.neo = neo(query);
+
                 let aliasPrefixes = "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z".split(",");
 
-                function neoRelationship(reltype, relAlias) {
-
-                    relAlias = relAlias || "";
-
-                    if (reltype.predicate.symmetrical) {
-                        return " - [" + relAlias + ":" + reltype.predicate.lookup + "] - ";
-                    } else if (reltype.direction === "out") {
-                        return " - [" + relAlias + ":" + reltype.predicate.lookup + "] -> ";
-                    } else {
-                        return " <- [" + relAlias + ":" + reltype.predicate.lookup + "] - ";
-                    }
-                    //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
-                }
-
-                function neoTarget(reltype, level) {
-
-                    let alias = "t" + level;
-
-                    if (reltype.target) {
-                        return "(" + alias + ":" + reltype.class + " {Lookup:'" + reltype.target + "'}) ";
-                    } else {
-                        return "(" + alias + ":" + reltype.class + ")";
-                    }
-                    //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
-                }
-
                 function neo(s, level, aliases, aliasprefix, parentAlias, query) {
+
+                    function neoRelationship(reltype, relAlias) {
+
+                        relAlias = relAlias || "";
+
+                        if (reltype.predicate.symmetrical) {
+                            return " - [" + relAlias + ":" + reltype.predicate.lookup + "] - ";
+                        } else if (reltype.direction === "out") {
+                            return " - [" + relAlias + ":" + reltype.predicate.lookup + "] -> ";
+                        } else {
+                            return " <- [" + relAlias + ":" + reltype.predicate.lookup + "] - ";
+                        }
+                        //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
+                    }
+
+                    function neoTarget(reltype, level) {
+
+                        let alias = "t" + level;
+
+                        if (reltype.target) {
+                            return "(" + alias + ":" + reltype.class + " {Lookup:'" + reltype.target + "'}) ";
+                        } else {
+                            return "(" + alias + ":" + reltype.class + ")";
+                        }
+                        //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
+                    }
 
                     aliases = aliases || new Array();
                     level = level || 0;
@@ -659,7 +689,7 @@ module.exports = function (config) {
 
                 function recursiveSelection(s, selection, parentType, level, aliases, aliasPrefix, parentAlias, query) {
 
-                    if (s.selectionSet) {
+                    if (s.selectionSet && s.kind !== "FragmentSpread") {
 
                         let reltype = s.name.value;
                         let type = classDefs[parentType.reltypes[reltype].class];

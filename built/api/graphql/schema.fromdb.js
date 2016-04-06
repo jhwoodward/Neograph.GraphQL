@@ -6,6 +6,12 @@ Object.defineProperty(exports, "__esModule", {
 
 var _graphql = require('graphql');
 
+var _utilities = require('graphql/utilities');
+
+var _fs = require('fs');
+
+var _fs2 = _interopRequireDefault(_fs);
+
 var _expressGraphql = require('express-graphql');
 
 var _expressGraphql2 = _interopRequireDefault(_expressGraphql);
@@ -126,16 +132,24 @@ let generateFields = () => {
                 args: makeGraphQLListArgs(t),
                 resolve: (source, args, root) => {
                     let selections = root.fieldASTs[0].selectionSet.selections;
-                    return node.list.search(t, args, selections, classDefs); //.catch((err)=>{throw err})
+                    return node.list.search(t, args, selections, root.fragments, classDefs);
+
+                    //   ;//.catch((err)=>{throw err})
+                    // return data;
                 }
             };
         });
 
-        fields["Classes"] = {
-            type: new _graphql.GraphQLList(_types2.default.classtype),
-            resolve: (source, args) => {}
-        };
-
+        /*
+        fields["GraphQuery"]=new GraphQLObjectType({
+            name:"GraphQuery",
+            fields:()=> ({
+        node:{type:types.graph},
+        provenance:{type:types.graph},
+        period:{type:types.graph}
+        })
+        });
+        */
         return fields;
     });
 };
@@ -146,17 +160,33 @@ var out = {
 
         generateFields().then(_fields => {
 
+            let storeType = new _graphql.GraphQLObjectType({
+                name: 'Store',
+                fields: () => _fields
+            });
+
+            let store = {};
+
             let schema = new _graphql.GraphQLSchema({
                 query: new _graphql.GraphQLObjectType({
                     name: 'Query',
-                    fields: () => _fields
+                    fields: () => ({
+                        store: {
+                            type: storeType,
+                            resolve: () => store
+                        }
+                    })
                 })
             });
 
             app.use('/graphql', (0, _expressGraphql2.default)({
-                schema: schema,
+                schema,
                 graphiql: true
             }));
+
+            (0, _graphql.graphql)(schema, _utilities.introspectionQuery).then(function (json) {
+                _fs2.default.writeFile('../data/schema.json', JSON.stringify(json, null, 2));
+            });
         });
     }
 };

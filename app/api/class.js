@@ -83,7 +83,7 @@ var that = {
                 type.props = _.keyBy(_.merge(props,propsMetadata),'name');
 
                 //add id and labels
-                type.props.id = {type:'number',name:'id',readonly:true};
+                type.props.id = {type:'string',name:'id',readonly:true};
                 type.props.labels = {type:'array<string>',name:'labels'};
                 type.props.lookup= {type:'string',name:'lookup',required:true};
                 type.props.description= {type:'string',name:'description'};

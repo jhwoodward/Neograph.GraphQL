@@ -59,23 +59,7 @@ let picture =  new GraphQLObjectType({
 
 
 
-let lookup=new GraphQLObjectType({
-    name: 'Lookup',
-    fields:() => ({
-        id:{type:GraphQLInt},
-        type:{type:GraphQLString},
-        label:{type:GraphQLString},
-        lookup:{type:GraphQLString}
-    })
-});
 
-let relationship = new GraphQLObjectType({
-    name: 'Relationship',
-    fields:{
-        predicate:{type:predicate},
-        items:{type:new GraphQLList(lookup)},
-        }
-});
 
 let node= new GraphQLObjectType({
     name: 'Node',
@@ -135,6 +119,49 @@ let classtype = new _graphql.GraphQLObjectType({
     })
 });
 
+let lookup = new _graphql.GraphQLObjectType({
+    name: 'Lookup',
+    fields: () => ({
+        id: { type: _graphql.GraphQLInt },
+        type: { type: _graphql.GraphQLString },
+        lookup: { type: _graphql.GraphQLString }
+    })
+});
+
+let relationship = new _graphql.GraphQLObjectType({
+    name: 'Relationship',
+    fields: {
+        predicate: { type: predicate },
+        items: { type: new _graphql.GraphQLList(lookup) }
+    }
+});
+
+let edgeProps = new _graphql.GraphQLObjectType({
+    name: 'EdgeProps',
+    fields: {
+        weight: { type: _graphql.GraphQLInt }
+    }
+});
+
+let edge = new _graphql.GraphQLObjectType({
+    name: 'Edge',
+    fields: {
+        id: { type: _graphql.GraphQLInt },
+        start: { type: _graphql.GraphQLInt },
+        end: { type: _graphql.GraphQLInt },
+        predicate: { type: _graphql.GraphQLString },
+        properties: { type: edgeProps }
+    }
+});
+
+let graph = new _graphql.GraphQLObjectType({
+    name: 'Graph',
+    fields: {
+        nodes: { type: new _graphql.GraphQLList(lookup) },
+        edges: { type: new _graphql.GraphQLList(edge) }
+    }
+});
+
 exports.default = {
     /*
     listOptions:listOptions,
@@ -142,6 +169,7 @@ exports.default = {
     node:node,
     relationship:relationship,
     lookup:lookup,*/
-    classtype: classtype
+    classtype: classtype,
+    graph: graph
+
 };
-//# sourceMappingURL=types.js.map

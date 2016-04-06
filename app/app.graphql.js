@@ -11,9 +11,7 @@ app.use(require('./headers'));
 
 var port = process.env.PORT || config.host.port;      
 
-
 schema.load(app);
-    
-    
+
 app.listen(port);
 console.log('Listening on port ' + port);
