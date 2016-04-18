@@ -11,13 +11,14 @@ import fs from 'fs';
 
 import GraphQLHTTP from 'express-graphql';
 import types from './types.js';
-//import picture from '../picture';
-var config = require('../../api.config.js');
+import queryHelper from './queryHelper';
 
+
+var config = require('../../api.config.js');
 
 // import classDefs from './classDefs';
 var picture = require('../picture')(config);
-var node = require('../node')(config);
+//var node = require('../node')(config);
 var classDef = require('../class')(config);
 let lodash = require("lodash");
 
@@ -131,7 +132,10 @@ let generateFields = () => {
                  args: makeGraphQLListArgs(t),
                  resolve: (source, args, root) => {
                         let selections = root.fieldASTs[0].selectionSet.selections;
-                        return node.list.search(t,args,selections,root.fragments,classDefs);
+                        
+                        let qh = queryHelper(classDefs);
+                        let query = qh.resolve(t,args,selections,root.fragments);
+                        return qh.execute(query);
                     
                         
                      //   ;//.catch((err)=>{throw err})
