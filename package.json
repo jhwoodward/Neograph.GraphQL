@@ -11,11 +11,9 @@
   "scripts": {
     "lint": "jshint --exclude ./node_modules,./test .",
     "prestart2": "npm run lint",
-    "watch": "babel app --out-dir built --source-maps --watch",
-    "prestart": "babel app --out-dir built --source-maps",
-    "start": "node  built/app.graphql.js",
-    "rest": "node  built/app.rest.js",
-    "oldgraphql": "babel-node --presets es2015 app.graphql.js"
+    "watch": "babel src --out-dir built --source-maps --watch",
+    "prestart": "babel src --out-dir built --source-maps",
+    "start": "node  built/server.js"
   },
   "babel": {
     "presets": [
