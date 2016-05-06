@@ -37,7 +37,7 @@ const api = {
     return out;
   },
   executeStatements: (statements) => {
-      // Check api each statement is a statement and not just a query
+    // Check api each statement is a statement and not just a query
     statements = statements.map(s => {
       if (!s.statement) { s = api.buildStatement(s); }
       return s;
@@ -51,7 +51,7 @@ const api = {
       }
     });
   },
-    // Type = graph or row
+  // Type = graph or row
   executeQuery: (q, type, params) => {
     const statements = [api.buildStatement(q, type, params)];
 
