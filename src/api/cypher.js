@@ -2,31 +2,32 @@
 import r from 'request-promise';
 import NeoError from './NeoError';
 
-const txUrl = config.neo4j.root + '/db/data/transaction/commit';
+const txUrl = `${config.neo4j.root}/db/data/transaction/commit`;
 
-const cypher = (statements, transform) => {
-  return r.post({
+const cypher = (statements, transform) =>
+  r.post({
     uri: txUrl,
     method: 'POST',
-    json: { statements: statements },
+    json: { statements },
     headers: {
-      'Authorization': config.neo4j.password
+      Authorization: config.neo4j.password
     },
-    transform:transform
+    transform
   });
-};
 
-const isEmpty = (obj) => {
-  for (var prop in obj) {
-    if (obj.hasOwnProperty(prop))
-      return false;
-  }
-  return true;
+const isEmpty = obj => {
+  let out = true;
+  Object.keys(obj).forEach(key => {
+    if (obj.hasOwnProperty(key)) {
+      out = false;
+    }
+  });
+  return out;
 };
 
 const api = {
   buildStatement: (q, type, params, includeStats) => {
-    var out = { 'statement': q, 'includeStats': includeStats ? true : false };
+    const out = { statement: q, includeStats };
     if (params && !isEmpty(params)) {
       out.parameters = params;
     }
@@ -49,11 +50,9 @@ const api = {
         return d.results;
       }
     });
-  }
-    ,
+  },
     // Type = graph or row
   executeQuery: (q, type, params) => {
-
     const statements = [api.buildStatement(q, type, params)];
 
     return cypher(statements).then(d => {

@@ -1,4 +1,3 @@
-import extend from 'extend';
 import cypher from './cypher';
 import utils from './utils';
 import changeCase from 'change-case';
@@ -7,85 +6,91 @@ import _ from 'lodash';
 import merge from 'deepmerge';
 
 const buildSchema = (predicates) => {
+  const propQuery = `
+    match (n:Class) optional match n - [r:PROPERTY] -> (p:Property) 
+    return n,collect(r),collect(p)
+    union match (n:Class) - [:EXTENDS*] -> (b:Class)-[r:PROPERTY]->(p:Property) 
+    return n,collect(r),collect(p)
+    
+    union match (n:Class) <- [:EXTENDS*] - (b:Class)-[r:PROPERTY]->(p:Property) 
+    return n,collect(r),collect(p)
+    `; // Backwards - for graphql return type only
 
-        let props = "match (n:Class) optional match n - [r:PROPERTY] -> (p:Property) return n,collect(r),collect(p)";
-        props += " union match (n:Class) - [:EXTENDS*] -> (b:Class)-[r:PROPERTY]->(p:Property) return n,collect(r),collect(p)";
-        
-        //backwards - for graphql return type only
-        props += " union match (n:Class) <- [:EXTENDS*] - (b:Class)-[r:PROPERTY]->(p:Property) return n,collect(r),collect(p)";
+  const relTypeQuery = `
+    match (n:Class ) -[r] -> (c:Class)  where type(r)<>'EXTENDS'
+    return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)
+    union match (n:Class ) - [:EXTENDS*] -> (d:Class) - [r] -> (c:Class)  
+    where type(r)<>'EXTENDS' 
+    return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)
+    union match (n:Class ) <-[r] - (c:Class)  
+    where type(r)<>'EXTENDS' 
+    return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)
+    union match (n:Class ) - [:EXTENDS*] -> (d:Class) <- [r] - (c:Class)  
+    where type(r)<>'EXTENDS' 
+    return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)
+    
+    union match (n:Class ) <- [:EXTENDS*] - (d:Class) - [r] -> (c:Class)  
+    where type(r)<>'EXTENDS' 
+    return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)
+    union match (n:Class ) <- [:EXTENDS*] - (d:Class) <- [r] - (c:Class)  
+    where type(r)<>'EXTENDS' 
+    return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)
+    `; // Backwards - for graphql return type only
 
-        let relTypes = "match (n:Class ) -[r] -> (c:Class)  where type(r)<>'EXTENDS'";
-        relTypes += "  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)";
-        relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) - [r] -> (c:Class)  where type(r)<>'EXTENDS' ";
-        relTypes += "  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)";
-        
-        
-        relTypes += " union match (n:Class ) <-[r] - (c:Class)  where type(r)<>'EXTENDS' ";
-        relTypes += "  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)";
-        relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) <- [r] - (c:Class)  where type(r)<>'EXTENDS' "; 
-        relTypes += "  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)";
-  
+  return cypher.executeStatements([propQuery, relTypeQuery]).
+    then(results => {
+      const types = {};
 
-        //backwards - for graphql return type only
-       relTypes += " union match (n:Class ) <- [:EXTENDS*] - (d:Class) - [r] -> (c:Class)  where type(r)<>'EXTENDS' "; 
-        relTypes += "  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)";
-       relTypes += " union match (n:Class ) <- [:EXTENDS*] - (d:Class) <- [r] - (c:Class)  where type(r)<>'EXTENDS' "; 
-        relTypes += "  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)";
+      results[0].data.forEach(pd => {
+        const type = utils.camelCase(pd.row[0]);
 
-        return cypher.executeStatements([props,relTypes]).
-            then(results => {
+        if (!type.lookup) {
+          console.warn(`Type without lookup (id:${pd.row[0]})`);
+          return;
+        }
 
-            let types = {};
-            
-            results[0].data.forEach(pd => {
-                
-                let type = utils.camelCase(pd.row[0]);
+        const props = pd.row[2].map(e => ({
+          name: changeCase.camelCase(e.Lookup),
+          type: e.Type || 'string'
+        }));
 
-                if (!type.lookup) {
-                    console.warn("Type without lookup (id:" + pd.row[0] + ")");
-                    return;
-                }
+        const propsMetadata = pd.row[1].map(e => ({ required: e.Required || false }));
+        type.props = _.keyBy(_.merge(props, propsMetadata), 'name');
 
-                let props = pd.row[2].map(e=>{return {name:changeCase.camelCase(e.Lookup),type:e.Type || "string"}});
-                let propsMetadata = pd.row[1].map(e=>{return {required:e.Required || false}});
-                type.props = _.keyBy(_.merge(props,propsMetadata),'name');
+        // add id and labels
+        type.props.id = { type: 'string', name: 'id', readonly: true };
+        type.props.labels = { type: 'array<string>', name: 'labels' };
+        type.props.lookup = { type: 'string', name: 'lookup', required: true };
+        type.props.description = { type: 'string', name: 'description' };
 
-                //add id and labels
-                type.props.id = {type:'string',name:'id',readonly:true};
-                type.props.labels = {type:'array<string>',name:'labels'};
-                type.props.lookup= {type:'string',name:'lookup',required:true};
-                type.props.description= {type:'string',name:'description'};
+        type.reltypes = {};
+        const rels = results[1].data.filter(item => type.lookup === item.row[0]);
+        rels.forEach(e => {
+          const pred = e.row[1].map(p => ({ predicate: predicates[p] }));
+          const dir = _.fill(Array(pred.length), { direction: e.row[2] });
+          const cls = e.row[3].map(c => ({ class: c }));
+          const reltypes = _.keyBy(_.merge(pred, dir, cls)
+                            , r => (r.direction === 'in' ?
+                                r.predicate.reverse.toLowerCase() :
+                                r.predicate.lookup.toLowerCase()));
 
-                type.reltypes={};
-                let rels = results[1].data.filter((item)=>{return type.lookup === item.row[0];});
-                rels.forEach(e=>{
-                    let pred = e.row[1].map(p=>{return{predicate:predicate.list[p]}});
-                    let dir = _.fill(Array(pred.length),{direction:e.row[2]});
-                    let cls = e.row[3].map(c=>{return{class:c}});
-                    let reltypes = _.keyBy(_.merge(pred,dir,cls)
-                                    ,r => r.direction==="in"? r.predicate.reverse.toLowerCase() : r.predicate.lookup.toLowerCase());
-                    
-                    type.reltypes = _.assignIn(type.reltypes,reltypes);
-                });
-
-                //only add if it has props - otherwise it has no use
-                if (Object.keys(type.props).length){
-                    
-                    if (types[type.lookup]){
-                        types[type.lookup] = merge(types[type.lookup],type);
-                    }
-                    else{
-                          types[type.lookup] = type;
-                    }
-                  
-                }
-            })
-
-            return types;
+          type.reltypes = Object.assign(type.reltypes, reltypes);
         });
-        
- }
+
+        // only add if it has props - otherwise it has no use
+        if (Object.keys(type.props).length) {
+          if (types[type.lookup]) {
+            types[type.lookup] = merge(types[type.lookup], type);
+          } else {
+            types[type.lookup] = type;
+          }
+        }
+      });
+
+      return types;
+    });
+};
 
 export default {
-   load: () => predicate.refreshList().then(buildSchema)
-}
+  load: () => predicate.refreshList().then(buildSchema)
+};

@@ -1,161 +1,129 @@
 import {
+    graphql,
     GraphQLSchema,
     GraphQLObjectType,
     GraphQLInt,
     GraphQLString,
-    GraphQLList
+    GraphQLList,
+    GraphQLBoolean
 } from 'graphql';
-import {graphql} from 'graphql';
-import {introspectionQuery} from 'graphql/utilities';
+
+import { introspectionQuery } from 'graphql/utilities';
 import fs from 'fs';
 import GraphQLHTTP from 'express-graphql';
-import types from './types.js';
 import queryHelper from './queryHelper';
 import classDef from './classDef';
-import lodash from 'lodash';
 
-const makeGraphQLListArgs = (t) => {
-    
-    let out =  {};
-    
-      for (let pkey in t.props){
-        let p = t.props[pkey];
-        switch (p.type){
-            case "boolean":
-                out[pkey] = {type:GraphQLBoolean};
-                break;
-            case "number":
-                out[pkey] = {type:GraphQLInt};
-                break;
-         //   case "array[string]":
-         //       out[pkey] ={type:new GraphQLList(GraphQLString)};
-         //       break;
-            default :
-                out[pkey] = {type:GraphQLString};
-        }
+const makeGraphQLListArgs = t => {
+  const out = {};
+  Object.keys(t.props).forEach(key => {
+    const prop = t.props[key];
+    switch (prop.type) {
+      case 'boolean':
+        out[key] = { type: GraphQLBoolean };
+        break;
+      case 'number':
+        out[key] = { type: GraphQLInt };
+        break;
+      default :
+        out[key] = { type: GraphQLString };
     }
-    
-    for (let reltypekey in t.reltypes)
-    {
-        out[reltypekey]={type:GraphQLString};
-    }
-    
-    return out;
-
-}
-
-
-const makeGraphQLprops = (props) =>{
-    
-    let out = {};
-    for (let pkey in props){
-        let p = props[pkey];
-        switch (p.type){
-            case "boolean":
-                out[pkey] = {type:GraphQLBoolean};
-                break;
-            case "number":
-                out[pkey] = {type:GraphQLInt};
-                break;
-            case "array<string>":
-                out[pkey] ={type:new GraphQLList(GraphQLString)};
-                break;
-            default :
-                out[pkey] = {type:GraphQLString};
-        }
-    }
-            
-    return out;
+  });
+  Object.keys(t.reltypes).forEach(key => {
+    out[key] = { type: GraphQLString };
+  });
+  return out;
 };
 
-const generateFields = () => {
-   return classDef.load().then(classDefs => {
-        let fields = {};
-           
-         lodash.forOwn(classDefs, t => {
-             t.graphQLObjectType = new GraphQLObjectType(
-                {
-                    name:t.lookup,
-                    description:t.description,
-                    fields:() => {
-                        let p = makeGraphQLprops(t.props);
-                        
-                        for (let reltypekey in t.reltypes)
-                        {
-                            let reltype = t.reltypes[reltypekey];
-                            let objtype = classDefs[reltype.class].graphQLObjectType;
-                            p[reltypekey] = {
-                                type: new GraphQLList(objtype)
-                            };
-                            let args =makeGraphQLListArgs(classDefs[reltype.class]);
+const makeGraphQLprops = props => {
+  const out = {};
+  Object.keys(props).forEach(key => {
+    const prop = props[key];
+    switch (prop.type) {
+      case 'boolean':
+        out[key] = { type: GraphQLBoolean };
+        break;
+      case 'number':
+        out[key] = { type: GraphQLInt };
+        break;
+      case 'array<string>':
+        out[key] = { type: new GraphQLList(GraphQLString) };
+        break;
+      default :
+        out[key] = { type: GraphQLString };
+    }
+  });
+  return out;
+};
 
-                            p[reltypekey].args = args;
-                        }
-                        
-                        return p;
-                    }
-                });
-
-
-            fields[t.lookup]={
-                type:new GraphQLList(t.graphQLObjectType),
-                 args: makeGraphQLListArgs(t),
-                 resolve: (source, args, root) => {
-                        let selections = root.fieldASTs[0].selectionSet.selections;
-                        
-                        let qh = queryHelper(classDefs);
-                        let query = qh.resolve(t,args,selections,root.fragments);
-                        return qh.execute(query);
-                }   
+const generateFields = () => classDef.load().then(classDefs => {
+  const fields = {};
+  Object.keys(classDefs).forEach(key => {
+    const t = classDefs[key];
+    t.graphQLObjectType = new GraphQLObjectType(
+      {
+        name: t.lookup,
+        description: t.description,
+        fields: () => {
+          const p = makeGraphQLprops(t.props);
+          Object.keys(t.reltypes).forEach(reltypekey => {
+            const reltype = t.reltypes[reltypekey];
+            const objtype = classDefs[reltype.class].graphQLObjectType;
+            p[reltypekey] = {
+              type: new GraphQLList(objtype)
             };
+            const args = makeGraphQLListArgs(classDefs[reltype.class]);
+            p[reltypekey].args = args;
+          });
+          return p;
+        }
+      });
 
-        });
-        
-        return fields;
-        
-    });
+    fields[t.lookup] = {
+      type: new GraphQLList(t.graphQLObjectType),
+      args: makeGraphQLListArgs(t),
+      resolve: (source, args, root) => {
+        const selections = root.fieldASTs[0].selectionSet.selections;
+        const qh = queryHelper(classDefs);
+        const query = qh.resolve(t, args, selections, root.fragments);
+        return qh.execute(query);
+      }
+    };
+  });
+  return fields;
+});
 
-};
 
 const api = {
+  load: app => {
+    generateFields().then(fields => {
+      const storeType = new GraphQLObjectType({
+        name: 'Store',
+        fields: () => fields
+      });
+      const store = {};
+      const schema = new GraphQLSchema({
+        query: new GraphQLObjectType({
+          name: 'Query',
+          fields: () => ({
+            store: {
+              type: storeType,
+              resolve: () => store
+            }
+          })
+        })
+      });
 
-    load:(app) => {
-        
-        generateFields().then((fields)=>{
-            
-            let storeType = new GraphQLObjectType({
-                    name: 'Store',
-                    fields:() => fields
-                });
-         
-            let store = {};
-            
-            let schema = new GraphQLSchema({
-              query:new GraphQLObjectType({
-                    name: 'Query',
-                    fields:() => ({
-                        store:{
-                            type:storeType,
-                            resolve:()=>store
-                        }
-                    })
-                })
-            });
+      app.use('/graphql', new GraphQLHTTP({
+        schema,
+        graphiql: true
+      }));
 
-             app.use('/graphql',GraphQLHTTP({
-                schema,
-                graphiql:true
-            }));
-            
-            graphql(schema,introspectionQuery).then(function(json){
-                fs.writeFile('../data/schema.json',JSON.stringify(json,null,2));
-            })
-                
-        });   
-    }
+      graphql(schema, introspectionQuery).then(json => {
+        fs.writeFile('../data/schema.json', JSON.stringify(json, null, 2));
+      });
+    });
+  }
 };
 
 export default api;
-
-
-
