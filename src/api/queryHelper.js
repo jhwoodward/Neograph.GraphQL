@@ -1,10 +1,9 @@
-var _ = require("lodash");
-var changeCase = require("change-case");
-var config = require('../../api.config.js');
-var cypher = require('../cypher.js')(config);
-var utils = require("../utils")(config);
- var Immutable = require("immutable");
-  var merge = require('deepmerge');
+import _ from 'lodash';
+import changeCase from 'change-case';
+import cypher from './cypher.js';
+import utils from './utils';
+import Immutable from 'immutable';
+import merge from 'deepmerge';
  
 class QueryHelper {
     
@@ -26,20 +25,17 @@ class QueryHelper {
             else{
             return " <- [" + relAlias + ":" + reltype.predicate.lookup + "] - ";
             }
-            //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
+
         }
             
        neoTarget(reltype,level){
-                
             let alias = "t" + level;
-            
             if (reltype.target){
                 return "(" + alias + ":" + reltype.class + " {Lookup:'" + reltype.target + "'}) ";
             }
             else{
                 return "(" + alias + ":" + reltype.class + ")";
             }
-            //  q+= "(m:Label {Label:'" + rel.target + "'}) ";
         }
          
        neoWith(query){
@@ -52,39 +48,34 @@ class QueryHelper {
       }       
                 
       neo(d){
-//s,level,aliases,aliasprefix,parentAlias,query
-            let branch = d.branch;
+            let s = d.s;
             let level = d.level || 0;
-          //  let aliases = d.aliases || new Array();
             let aliasprefix = d.aliasprefix || "a";
             let parentAlias = d.parentAlias;
-            let query = d.query || d.branch;//base query
-            
-          
+            let query = d.query || d.s;//base query
             let params={};
             let alias = aliasprefix + level;
             let withAliases = "";
 
             let q = this.neoWith(query);
 
-            let match = alias + ":" + branch.type.lookup;
-            if (branch.args.props.labels){
-                match += ":" + branch.args.props.labels.target.split(",").join(":");
+            let match = alias + ":" + s.type.lookup;
+            if (s.args.props.labels){
+                match += ":" + s.args.props.labels.target.split(",").join(":");
             }
             q += " match (" + match + ") ";
 
             query.usedAliases.push(alias);
             
-            // args.reltypes form additional filtering via branch
+            // args.reltypes form additional filtering via relationship
             // args.props form additional filtering via where clause
-            
-            _.forOwn(branch.args.reltypes,reltype=>{
+            _.forOwn(s.args.reltypes,reltype=>{
                 q+= this.neoWith(query) + " match (" + alias + ") " + this.neoRelationship(reltype) + this.neoTarget(reltype,level);
             })
 
             let cnt = 0;
 
-            _.forOwn(branch.args.props,prop=>{
+            _.forOwn(s.args.props,prop=>{
                 if (prop.name != "labels"){
                     if (cnt ===0){
                         q +=" where ";
@@ -112,19 +103,16 @@ class QueryHelper {
                     else{
                         params[alias + prop.name] = prop.target;
                     }
-                 
-                    
-                    
                     cnt +=1;
                 }
             })
             
             
-            // if (s.reltype) then query acts on a branch with parent alias
+            // if (s.reltype) then query acts on a relationship with parent alias
             // (otherwise it starts with just the type (base query))
-            if (branch.reltype){
+            if (s.reltype){
                 let relAlias = parentAlias + "_" + alias;
-                q += this.neoWith(query) + " match (" + parentAlias + ") " + this.neoRelationship(branch.reltype,relAlias) + "(" + alias + ") ";
+                q += this.neoWith(query) + " match (" + parentAlias + ") " + this.neoRelationship(s.reltype,relAlias) + "(" + alias + ") ";
                 query.relAliases.push(relAlias);
             }
             
@@ -141,9 +129,7 @@ class QueryHelper {
      
             
          recursiveSelection(d){
-                
-              //  s,selection,parentType,level,aliases,aliasPrefix,parentAlias,query
- 
+
                if (d.s.selectionSet && d.s.kind!=="FragmentSpread"){
                     
                     let reltypekey=d.s.name.value;
@@ -153,19 +139,19 @@ class QueryHelper {
                         acc[item.name.value]=item.value.value;
                         return acc;
                     },{});
-                            //
-                    let thisBranch = d.branches[reltypekey]  = {
+
+                    let thisBranch = d.selection[reltypekey]  = {
                         type:type   
                         ,
                         args:this.reduceArgs(type,args)
                         ,
                         reltype:reltype
                         ,
-                        branches:{}
+                        selection:{}
                     };
                      
                      let neoArgs = {
-                         branch:thisBranch,
+                         s:thisBranch,
                          level:d.level,
                          aliasprefix:d.aliasPrefix,
                          parentAlias:d.parentAlias,
@@ -173,13 +159,12 @@ class QueryHelper {
                      }   
                      
                     thisBranch.neo = this.neo(neoArgs);
-                    
-                    
+
                     d.s.selectionSet.selections.forEach((sNext,i)=>{
                         
                         let selArgs = {
                             s:sNext,
-                            branches:thisBranch.branches,
+                            selection:thisBranch.selection,
                             parentType:type,
                             level: d.level+1,
                             aliasPrefix: this.aliasPrefixes[i],
@@ -200,7 +185,7 @@ class QueryHelper {
            //They need to be split into props & reltypes 
            //as filtering is implemented differently for each
            //- props always relate to fields 
-           //- reltypes always relate to branches
+           //- reltypes always relate to relationships
             
          let argsArray = [];
           for (var key in args){
@@ -225,7 +210,6 @@ class QueryHelper {
       mergeFragments(selections,fragments){
           
            let merge = (selections) =>{
-                
                 let out = (new Array()).concat(selections);
                 //merge fragments into selections
                 selections.forEach(s=>{
@@ -237,23 +221,16 @@ class QueryHelper {
                 })
                 return out;
             }
-
             return merge(selections);
-
       }
-      
-          
-      
-      
-    resolve(baseType,baseArgs,selections,fragments){
 
-           
+    resolve(baseType,baseArgs,selections,fragments){
 
             let query = {
                 type:baseType,
                 args: this.reduceArgs(baseType,baseArgs)
                 ,
-                branches:{}
+                selection:{}
                 ,
                 q:"",//the query string that will be sent to neo4j
                 params:{}//the params object that will be sent to neo4j
@@ -261,15 +238,17 @@ class QueryHelper {
                 relAliases:[]
                 ,
                 usedAliases:[]
+                ,
+                selections: this.mergeFragments(selections,fragments)
             };
 
-            query.neo = this.neo({branch:query});
+            query.neo = this.neo({s:query});
 
-            this.mergeFragments(selections,fragments).forEach((s,i)=>{
+            query.selections.forEach((s,i)=>{
                 
                    let selArgs = {
                             s:s,
-                            branches:query.branches,
+                            selection:query.selection,
                             parentType:baseType,
                             level: 1,
                             aliasPrefix: this.aliasPrefixes[i],
@@ -340,7 +319,7 @@ class QueryHelper {
                 _.forOwn(grouped,item=>{
                         item.forEach(row=>{
                             let out = row[query.neo.alias];
-                            fill(query.branches,row,out);
+                            fill(query.selection,row,out);
                             if (transformed[out.id]){
                                 transformed[out.id] = merge(transformed[out.id],out);
                             }
@@ -370,18 +349,7 @@ class QueryHelper {
 
                 return _.values(transformed);       
             });
-        
-        
-        
-        
-        
     }
-          
-    
-    
-    
-    
 }
-
 
 export default (classDefs) => new QueryHelper(classDefs);

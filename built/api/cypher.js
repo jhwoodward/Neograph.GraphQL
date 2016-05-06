@@ -1,144 +1,89 @@
-"use strict";
+'use strict';
 
-module.exports = function (config) {
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
 
-    "use strict";
+var _api = require('../api.config');
 
-    var txUrl = config.neo4j.root + "/db/data/transaction/commit";
+var _api2 = _interopRequireDefault(_api);
 
-    function cypher(statements, transform) {
-        var r = require("request-promise");
+var _requestPromise = require('request-promise');
 
-        return r.post({
-            uri: txUrl,
-            method: "POST",
-            json: { statements: statements }, //[{ statement: query, parameters: params }]
-            headers: {
-                'Authorization': config.neo4j.password
-            },
+var _requestPromise2 = _interopRequireDefault(_requestPromise);
 
-            transform: transform
-        });
-    }
+var _NeoError = require('./NeoError');
 
-    /*
-    function cypher2(statements, cb) {
-        var r = require("request");
-        r.post({
-            uri: txUrl,
-            json: { statements: statements },//[{ statement: query, parameters: params }] 
-            headers: {
-                'Authorization': config.neo4j.password
-            }
-        },
-    
-             function (err, res) {
-            
-            if (res) {
-                cb(err, res.body);
-            }
-            else {
-                cb(err);
-            }
-        });
-    
-    }
-    */
+var _NeoError2 = _interopRequireDefault(_NeoError);
 
-    function NeoError(err, q) {
-        // See https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi   
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, NeoError);
-        } else {
-            this.stack = new Error().stack || '';
-        }
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-        this.error = err.code;
-        this.message = err.message;
-        this.query = q;
-        // this.detail = err;
-    }
+const txUrl = _api2.default.neo4j.root + '/db/data/transaction/commit';
 
-    //var T = function () { };
-    //T.prototype = Error.prototype;
-    //NeoError.prototype = new T;
-
-    NeoError.prototype = Object.create(Error.prototype);
-    NeoError.prototype.constructor = NeoError;
-
-    function isEmpty(obj) {
-        for (var prop in obj) {
-            if (obj.hasOwnProperty(prop)) return false;
-        }
-        return true;
-    }
-
-    var that = {
-
-        buildStatement: function buildStatement(q, type, params, includeStats) {
-
-            //for (var key in params) {
-            //    if (!params[key] || isEmpty(params[key])) {
-            //        delete params[key];
-            //        q = q.replace("{" + key + "}", "");
-            //    }
-            //}
-
-            var out = { "statement": q, "includeStats": includeStats ? true : false };
-            if (params && !isEmpty(params)) {
-                out.parameters = params;
-            }
-
-            if (type) {
-                out.resultDataContents = [type];
-            }
-
-            return out;
-        },
-        executeStatements: function executeStatements(statements) {
-
-            //check that each statement is a statement and not just a query
-            statements = statements.map(function (s) {
-                if (!s.statement) {
-                    s = that.buildStatement(s);
-                }
-                return s;
-            });
-
-            return cypher(statements).then(function (d) {
-                if (d.errors.length) {
-                    throw new NeoError(d.errors[0], statements);
-                } else {
-                    return d.results;
-                }
-            });
-        },
-        executeQuery: function executeQuery(q, type, params) {
-            //type = graph or row
-
-            var statements = [that.buildStatement(q, type, params)];
-
-            return cypher(statements).then(function (d) {
-                if (d.errors.length) {
-                    throw new NeoError(d.errors[0], statements);
-                } else if (d.results.length) {
-                    return d.results[0].data;
-                } else {
-                    return null;
-                }
-            });
-        }
-
-        /*
-        , executeQuery2: function (q, type, params,cb) { //type = graph or row
-            
-            var statements = [that.buildStatement(q, type, params)];
-            
-            return cypher2(statements,cb);
-        }*/
-
-    };
-
-    return that;
+const cypher = (statements, transform) => {
+  return _requestPromise2.default.post({
+    uri: txUrl,
+    method: 'POST',
+    json: { statements: statements },
+    headers: {
+      'Authorization': _api2.default.neo4j.password
+    },
+    transform: transform
+  });
 };
+
+const isEmpty = obj => {
+  for (var prop in obj) {
+    if (obj.hasOwnProperty(prop)) return false;
+  }
+  return true;
+};
+
+const api = {
+  buildStatement: (q, type, params, includeStats) => {
+    var out = { 'statement': q, 'includeStats': includeStats ? true : false };
+    if (params && !isEmpty(params)) {
+      out.parameters = params;
+    }
+    if (type) {
+      out.resultDataContents = [type];
+    }
+    return out;
+  },
+  executeStatements: statements => {
+    // Check api each statement is a statement and not just a query
+    statements = statements.map(s => {
+      if (!s.statement) {
+        s = api.buildStatement(s);
+      }
+      return s;
+    });
+
+    return cypher(statements).then(d => {
+      if (d.errors.length) {
+        throw new _NeoError2.default(d.errors[0], statements);
+      } else {
+        return d.results;
+      }
+    });
+  },
+
+  // Type = graph or row
+  executeQuery: (q, type, params) => {
+
+    const statements = [api.buildStatement(q, type, params)];
+
+    return cypher(statements).then(d => {
+      if (d.errors.length) {
+        throw new _NeoError2.default(d.errors[0], statements);
+      } else if (d.results.length) {
+        return d.results[0].data;
+      } else {
+        return null;
+      }
+    });
+  }
+};
+
+exports.default = api;
 //# sourceMappingURL=cypher.js.map

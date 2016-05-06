@@ -1,57 +1,28 @@
-module.exports = function(config)
-{
-    "use strict";
+import extend from 'extend';
+import cypher from './cypher';
+import utils from './utils';
+import changeCase from 'change-case';
+import predicate from './predicate';
+import _ from 'lodash';
+import merge from 'deepmerge';
 
-    var extend = require('extend');
-    config = extend ( require('./config.default'), config);
-    var cypher = require("./cypher")(config);
-    var utils = require("./utils")(config);
-    var changeCase = require("change-case");
-    var predicate = require("./predicate")(config);
-    var _ = require("lodash");
-  var merge = require('deepmerge');
+const buildSchema = (predicates) => {
 
-
-var that = {
-    //object containing all types keyed on Lookup
-    list: {}
-    ,
-    isClass: function (label) {
-        return that.list[label] !== undefined;
-    }
-    ,
-    getSchema:function(n){
-        
-    
-     //   return that.list[n.]
-    
-    
-    }
-    ,
-    refreshList: function () {
-        return predicate.refreshList().then(that.buildSchema);
-    }
-    ,
-    buildSchema:function(predicates){
-        
-        
         let props = "match (n:Class) optional match n - [r:PROPERTY] -> (p:Property) return n,collect(r),collect(p)";
         props += " union match (n:Class) - [:EXTENDS*] -> (b:Class)-[r:PROPERTY]->(p:Property) return n,collect(r),collect(p)";
         
         //backwards - for graphql return type only
         props += " union match (n:Class) <- [:EXTENDS*] - (b:Class)-[r:PROPERTY]->(p:Property) return n,collect(r),collect(p)";
-    
-        
 
         let relTypes = "match (n:Class ) -[r] -> (c:Class)  where type(r)<>'EXTENDS'";
         relTypes += "  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)";
-      relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) - [r] -> (c:Class)  where type(r)<>'EXTENDS' ";
+        relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) - [r] -> (c:Class)  where type(r)<>'EXTENDS' ";
         relTypes += "  return n.Lookup,collect(type(r)),'out' as direction,collect(c.Lookup),collect(r)";
         
         
         relTypes += " union match (n:Class ) <-[r] - (c:Class)  where type(r)<>'EXTENDS' ";
         relTypes += "  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)";
-       relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) <- [r] - (c:Class)  where type(r)<>'EXTENDS' "; 
+        relTypes += " union match (n:Class ) - [:EXTENDS*] -> (d:Class) <- [r] - (c:Class)  where type(r)<>'EXTENDS' "; 
         relTypes += "  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)";
   
 
@@ -61,15 +32,12 @@ var that = {
        relTypes += " union match (n:Class ) <- [:EXTENDS*] - (d:Class) <- [r] - (c:Class)  where type(r)<>'EXTENDS' "; 
         relTypes += "  return n.Lookup,collect(type(r)),'in' as direction,collect(c.Lookup),collect(r)";
 
-
-
-        
-        return cypher.executeStatements([props,relTypes])
-            .then(function (results) {
+        return cypher.executeStatements([props,relTypes]).
+            then(results => {
 
             let types = {};
             
-            results[0].data.forEach((pd)=>{
+            results[0].data.forEach(pd => {
                 
                 let type = utils.camelCase(pd.row[0]);
 
@@ -95,9 +63,7 @@ var that = {
                     let dir = _.fill(Array(pred.length),{direction:e.row[2]});
                     let cls = e.row[3].map(c=>{return{class:c}});
                     let reltypes = _.keyBy(_.merge(pred,dir,cls)
-                                    ,function(r){
-                                        return r.direction==="in"? r.predicate.reverse.toLowerCase() : r.predicate.lookup.toLowerCase();
-                                    });
+                                    ,r => r.direction==="in"? r.predicate.reverse.toLowerCase() : r.predicate.lookup.toLowerCase());
                     
                     type.reltypes = _.assignIn(type.reltypes,reltypes);
                 });
@@ -115,64 +81,11 @@ var that = {
                 }
             })
 
-            that.list = types;
             return types;
         });
-    }
-    ,
-    isSystemInfo: function (label) {
-        return label == "Global" || label == "Type" || label == "Label" || label == "SystemInfo";
-    },
-    //should be in the ui
-    getLabelClass: function (node, label) {
-
-        if (node && label === node.Type) {
-            return 'label-warning';
-        }
         
-        if (that.isSystemInfo(label)) {
-            return 'label-system';
-        }
-        
-        if (that.isType(label)) {
-            return 'label-inverse pointer';
-        }
-        return 'label-info';
-    }
-    ,
-    personTypes: ['Painter',
-        'Illustrator',
-        'Philosopher',
-        'Poet',
-        'FilmMaker',
-        'Sculptor',
-        'Writer',
-        'Patron',
-        'Leader',
-        'Explorer',
-        'Composer',
-        'Scientist',
-        'Caricaturist',
-        'Mathematician']
-    ,
-    pictureTypes: ['Painting', 'Illustration', 'Drawing', 'Print']
-    ,
-    isPerson: function (type) {
-        return that.personTypes.indexOf(type) > -1;
-    }
-    /*
-    ,
-    items:function(id){
-        var q = "match n:"
-    }
-    */
+ }
 
-};
-
-return (function(){
-     that.refreshList();
-     return that;
-})();
-
-
-};
+export default {
+   load: () => predicate.refreshList().then(buildSchema)
+}

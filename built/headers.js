@@ -1,27 +1,29 @@
 'use strict';
 
-var config = require("./config");
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
 
-module.exports = function (req, res, next) {
+var _server = require('./server.config');
 
-    // Website you wish to allow to connect
-    res.setHeader('Access-Control-Allow-Origin', config.host.cors.allow);
+var _server2 = _interopRequireDefault(_server);
 
-    // Request methods you wish to allow
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-    // Request headers you wish to allow
-    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
-
-    // Set to true if you need the website to include cookies in the requests sent
-    // to the API (e.g. in case you use sessions)
-    res.setHeader('Access-Control-Allow-Credentials', true);
-
-    if (req.method === 'OPTIONS') {
-        res.status(200).end();
-    } else {
-        // Pass to next layer of middleware
-        next();
+exports.default = (req, res, next) => {
+  // Cors allow
+  if (req.headers.origin) {
+    for (let i = 0; i < _server2.default.origins.length; i++) {
+      const origin = _server2.default.origins[i];
+      if (req.headers.origin.indexOf(origin) > -1) {
+        res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+        break;
+      }
     }
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  next();
 };
 //# sourceMappingURL=headers.js.map

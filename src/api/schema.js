@@ -8,21 +8,13 @@ import {
 import {graphql} from 'graphql';
 import {introspectionQuery} from 'graphql/utilities';
 import fs from 'fs';
-
 import GraphQLHTTP from 'express-graphql';
 import types from './types.js';
 import queryHelper from './queryHelper';
+import classDef from './classDef';
+import lodash from 'lodash';
 
-
-var config = require('../../api.config.js');
-
-// import classDefs from './classDefs';
-var picture = require('../picture')(config);
-//var node = require('../node')(config);
-var classDef = require('../class')(config);
-let lodash = require("lodash");
-
-let makeGraphQLListArgs = (t)=>{
+const makeGraphQLListArgs = (t) => {
     
     let out =  {};
     
@@ -43,18 +35,17 @@ let makeGraphQLListArgs = (t)=>{
         }
     }
     
-     for (let reltypekey in t.reltypes)
+    for (let reltypekey in t.reltypes)
     {
         out[reltypekey]={type:GraphQLString};
-     }
+    }
     
     return out;
-    
-    
+
 }
 
 
-let makeGraphQLprops = (props) =>{
+const makeGraphQLprops = (props) =>{
     
     let out = {};
     for (let pkey in props){
@@ -77,17 +68,11 @@ let makeGraphQLprops = (props) =>{
     return out;
 };
 
-let generateFields = () => {
-
-
-   return classDef.refreshList().then((classDefs)=>{
-        
-    
-        
+const generateFields = () => {
+   return classDef.load().then(classDefs => {
         let fields = {};
            
-         lodash.forOwn(classDefs,t=>{
-             
+         lodash.forOwn(classDefs, t => {
              t.graphQLObjectType = new GraphQLObjectType(
                 {
                     name:t.lookup,
@@ -111,23 +96,8 @@ let generateFields = () => {
                     }
                 });
 
-/*
 
             fields[t.lookup]={
-                type: single,
-                 args:{
-                     lookup:{type:GraphQLString},
-                     id:{type:GraphQLInt}
-                } ,
-                 resolve:function(source,args,root){
-                     
-                     let selections = root.fieldASTs[0].selectionSet.selections;
-                     return node.list.search(t,args,selections,classDefs).then(data=>{return data[0];});
-                 } 
-            };
-      */
-           
-            fields[t.lookup]={//t.plural ? -- from db
                 type:new GraphQLList(t.graphQLObjectType),
                  args: makeGraphQLListArgs(t),
                  resolve: (source, args, root) => {
@@ -136,39 +106,20 @@ let generateFields = () => {
                         let qh = queryHelper(classDefs);
                         let query = qh.resolve(t,args,selections,root.fragments);
                         return qh.execute(query);
-                    
-                        
-                     //   ;//.catch((err)=>{throw err})
-                       // return data;
                 }   
             };
-            
-         
-            
- 
-            
+
         });
         
-        /*
-        fields["GraphQuery"]=new GraphQLObjectType({
-            name:"GraphQuery",
-            fields:()=> ({
-        node:{type:types.graph},
-        provenance:{type:types.graph},
-        period:{type:types.graph}
-
-    })
-        });
-        */
         return fields;
         
     });
 
 };
 
-var out = {
+const api = {
 
-    load:(app)=>{
+    load:(app) => {
         
         generateFields().then((fields)=>{
             
@@ -190,8 +141,7 @@ var out = {
                     })
                 })
             });
-        
-            
+
              app.use('/graphql',GraphQLHTTP({
                 schema,
                 graphiql:true
@@ -205,7 +155,7 @@ var out = {
     }
 };
 
-export default out;
+export default api;
 
 
 
