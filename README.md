@@ -8,13 +8,13 @@ A neo4j graph database instance is required to provide the persistence layer. Yo
 
 The methodology depends on having a schema defined in neo4j as follows:
 
-Nodes with label ``class`` represent 'classes' which correspond to graphQL object types. Class nodes has ``property`` relationships with ``property`` nodes, and the combination of these properties defines the schema opf the node. Class nodes can also have ``extends`` relationships with other class nodes, thereby inheriting properties from children.
+Nodes with label ``class`` represent 'classes' which correspond to graphQL object types. Class nodes have ``property`` relationships with ``property`` nodes, and the combination of these properties defines the schema of the node. Class nodes can also have ``extends`` relationships with other class nodes, thereby inheriting properties from children. The resulting aggragate of properties translates to the graphQL object type.
 
 The image below illustrates a possible structure, with the properties ``Name``, ``YearTo`` and ``YearFrom`` inherited by all ``Person`` types.
 
 ![alt tag](neo4j-graphql.jpg)
 
-Data nodes are linked to schema nodes with ``instance_of`` relationships.
+Data nodes are then linked to schema nodes by way of ``instance_of`` relationships. 
 
 ## Method
 
