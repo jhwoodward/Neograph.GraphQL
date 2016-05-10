@@ -10,9 +10,11 @@ The methodology depends on having a schema defined in neo4j as follows:
 
 Nodes with label ``class`` represent 'classes' which correspond to graphQL object types. Class nodes have ``property`` relationships with ``property`` nodes, and the combination of these properties defines the schema of the node. Class nodes can also have ``extends`` relationships with other class nodes, thereby inheriting properties from children. The resulting aggragate of properties translates to the graphQL object type.
 
-The image below illustrates a possible structure, with the properties ``Name``, ``YearTo`` and ``YearFrom`` inherited by all ``Person`` types.
+The image below illustrates a possible structure, with the properties ``Name``, ``YearTo`` and ``YearFrom`` inherited by all ``Person`` types, and ``Title``, ``Collection``, ``Medium`` etc inherited by all ``Picture`` types. 
 
-![alt tag](neo4j-graphql.jpg)
+![alt tag](neo4j-graphql2.jpg)
+
+Other relationships between classes such as ``Painting`` by ``Painter`` correspond to GraphQL List properties on the GraphQL object type.
 
 Data nodes are then linked to schema nodes by way of ``instance_of`` relationships. 
 
