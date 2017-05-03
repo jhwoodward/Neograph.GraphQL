@@ -2,6 +2,8 @@
 
 An optimized  neo4j query resolver for Facebook's GraphQL.
 
+GraphiQL endpoint demo: http://52.56.227.23:1338/graphql
+
 ## Prequisites
 
 A neo4j graph database instance is required to provide the persistence layer. You can download this from the neo4j website http://neo4j.com/.
