@@ -34,7 +34,7 @@
     "babel-relay-plugin": "^0.7.3",
     "body-parser": "~1.8.1",
     "change-case": "^2.3.1",
-    "debug": "~2.0.0",
+    "debug": "~4.1.1",
     "deepmerge": "^0.2.10",
     "express": "~4.9.0",
     "express-graphql": "^0.4.10",
