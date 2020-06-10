@@ -2,7 +2,7 @@
 
 An optimized  neo4j query resolver for Facebook's GraphQL.
 
-GraphiQL endpoint demo: http://52.56.227.23:1338/graphql
+[GraphiQL endpoint demo](http://52.56.227.23:1330/graphql?query=query%20%7B%20store%20%7B%20Painter(lookup%3A%22Poussin%22)%20%7B%0A%20%20name%0A%20%20influences%20%7B%0A%20%20%20%20name%0A%20%20%20%20influences%20%7B%0A%20%20%20%20%20%20name%0A%20%20%20%20%7D%0A%20%20%7D%0A%7D%20%7D%7D)
 
 ## Prequisites
 
